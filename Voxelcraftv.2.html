@@ -1,0 +1,3054 @@
+```html
+<!-- ... existing code ... -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VoxelCraft Ultra Smooth</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #0b1026;
+            font-family: 'Inter', sans-serif;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.2);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.3);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-stone-950 text-white select-none overflow-hidden">
+
+    <!-- Start Menu Overlay -->
+    <div id="start-menu" class="fixed inset-0 z-50 bg-gradient-to-br from-stone-900 via-stone-950 to-black flex items-center justify-center p-4">
+        <div class="bg-stone-900/90 border border-stone-700/80 backdrop-blur-xl w-full max-w-lg p-8 rounded-3xl shadow-2xl flex flex-col items-center text-center space-y-6">
+            <div class="space-y-2">
+                <h1 class="text-4xl font-black bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent tracking-wider">VOXELCRAFT ULTRA</h1>
+                <p class="text-stone-400 text-sm">Optimized 60FPS Infinite Terrain • Day/Night Cycle • Smooth Mobile & Desktop Controls</p>
+            </div>
+            
+            <div class="w-full bg-stone-800/50 p-4 rounded-2xl border border-stone-700 text-left text-xs text-stone-300 space-y-2">
+                <div class="font-bold text-emerald-400 text-sm mb-1">Controls Guide:</div>
+                <div>🖥️ <b class="text-white">Desktop:</b> Click to lock mouse. WASD, Space to jump, F to fight, G near a cow to collect milk or near a chicken to tame it with a seed; tamed chickens lay eggs over time. H near a bed at night to sleep. Left/right click to break/place, E for inventory, C by a chest, Z to undo, Escape to pause.</div>
+                <div>📱 <b class="text-white">Mobile:</b> Use Left Virtual Joystick to walk, Right side swipe to look around. On-screen Jump, Break, Place, Fight, Animal & Inventory buttons. Use Animal near cows/chickens; tame chickens with seeds to get eggs over time. Eat milk, eggs or other food from the inventory to restore hunger.</div>
+                <div>🌀 <b class="text-white">Portal:</b> Find the glowing portal on the highest nearby mountain and walk into it to reach the lava realm. Use the return portal there to come back.</div>
+            </div>
+
+            <div class="w-full grid grid-cols-2 gap-3">
+                <button id="btn-mode-survival" class="py-3 rounded-xl border-2 border-emerald-400 bg-emerald-900/50 text-white font-bold">Survival</button>
+                <button id="btn-mode-creative" class="py-3 rounded-xl border-2 border-stone-700 bg-stone-800/70 text-stone-300 font-bold">Creative</button>
+            </div>
+            <p id="mode-description" class="text-xs text-stone-400">Gather resources, manage hunger, and survive the world.</p>
+            <button id="btn-start-game" class="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 active:scale-95 text-white font-bold rounded-2xl shadow-lg shadow-emerald-900/40 text-lg transition-all flex items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Start Playing (Optimized)
+            </button>
+        </div>
+    </div>
+
+    <!-- Blue tint while the player is submerged in water -->
+    <div id="underwater-overlay" class="fixed inset-0 z-[5] pointer-events-none bg-blue-500/30 opacity-0 transition-opacity duration-300"></div>
+
+    <!-- Crosshair -->
+    <div id="crosshair" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none z-10 flex items-center justify-center opacity-75 hidden">
+        <div class="w-2 h-2 bg-white rounded-full border border-black shadow-sm"></div>
+    </div>
+
+    <!-- Top Left Stats / Info -->
+    <div id="hud" class="absolute top-4 left-4 z-10 pointer-events-none bg-black/50 backdrop-blur-md p-3 rounded-2xl border border-white/10 text-xs space-y-1 shadow-lg hidden">
+        <div class="font-bold text-emerald-400 text-sm tracking-wide">VoxelCraft Ultra</div>
+        <div id="coords">Pos: X: 0, Y: 0, Z: 0</div>
+        <div id="mode-display" class="text-cyan-300">Mode: Survival</div>
+        <div id="fps">FPS: 60</div>
+        <div id="time-display" class="text-amber-300">Time: Day</div>
+        <div id="season-display" class="text-lime-300">Season: Spring</div>
+        <div id="weather-display" class="text-sky-200">Weather: Clear</div>
+        <div id="health-display" class="text-rose-300">Health: 20 / 20</div>
+        <div id="hunger-display" class="text-amber-200">Hunger: 20 / 20</div>
+        <div class="w-36 h-2 bg-black/60 rounded-full overflow-hidden border border-white/15">
+            <div id="hunger-bar" class="h-full bg-amber-400 transition-[width] duration-300" style="width:100%"></div>
+        </div>
+    </div>
+
+    <!-- Pause/settings shortcut -->
+    <button id="btn-pause" class="absolute top-4 right-20 z-20 hidden bg-stone-800/80 hover:bg-stone-700 text-white px-3 py-2 rounded-xl border border-white/20 shadow-lg">Pause</button>
+
+    <!-- Action Feedback / Notifications -->
+    <div id="notification" class="absolute top-20 left-1/2 transform -translate-x-1/2 z-20 pointer-events-none bg-black/70 text-white px-4 py-2 rounded-xl text-sm transition-opacity duration-300 opacity-0 backdrop-blur-md border border-white/15 shadow-xl">
+        Notification
+    </div>
+
+    <!-- Hotbar UI -->
+    <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20 flex gap-2 bg-black/60 backdrop-blur-md p-2.5 rounded-2xl border border-white/15 shadow-2xl hidden" id="hotbar">
+        <!-- Hotbar slots populated via JS -->
+    </div>
+
+    <!-- Inventory Toggle Button -->
+    <button id="btn-inventory" class="absolute top-4 right-4 z-20 bg-stone-800/80 hover:bg-stone-700 active:scale-95 text-white p-3 rounded-2xl border border-white/20 shadow-lg flex items-center justify-center transition-all hidden">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+        </svg>
+    </button>
+
+    <button id="btn-fight-desktop" class="absolute bottom-6 right-6 z-20 hidden bg-amber-600/90 hover:bg-amber-500 active:scale-95 text-white px-6 py-4 rounded-2xl border border-amber-300/60 shadow-xl font-bold transition-all">
+        Fight (F)
+    </button>
+    <button id="btn-eat-apple" class="absolute bottom-6 left-6 z-20 hidden bg-red-700/90 hover:bg-red-600 active:scale-95 text-white px-4 py-3 rounded-2xl border border-red-300/60 shadow-xl font-bold transition-all">
+        Eat Apple (0)
+    </button>
+
+    <!-- Full Inventory Modal -->
+    <div id="inventory-modal" class="fixed inset-0 z-30 bg-black/75 backdrop-blur-md flex items-center justify-center hidden">
+        <div class="bg-stone-900 border border-stone-700 w-11/12 max-w-md p-6 rounded-3xl shadow-2xl flex flex-col max-h-[85vh]">
+            <div class="flex justify-between items-center mb-4 border-b border-stone-800 pb-3">
+                <h2 class="text-xl font-bold text-emerald-400">Inventory & Blocks</h2>
+                <button id="close-inventory" class="text-stone-400 hover:text-white p-1 rounded-xl hover:bg-stone-800 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="overflow-y-auto flex-1 pr-1">
+                <div class="grid grid-cols-4 gap-3" id="inventory-grid">
+                    <!-- Inventory items populated via JS -->
+                </div>
+                <section class="mt-5 border-t border-stone-700 pt-4 text-left">
+                    <h3 class="font-bold text-amber-300 mb-2">Resources & Crafting</h3>
+                    <div id="resource-list" class="text-xs text-stone-300 mb-3"></div>
+                    <div id="crafting-list" class="grid grid-cols-1 gap-2"></div>
+                    <div class="flex gap-2 mt-3">
+                        <button id="btn-save-world" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-3 py-2 text-xs font-bold">Save World</button>
+                        <button id="btn-load-world" class="flex-1 rounded-xl bg-sky-700 hover:bg-sky-600 px-3 py-2 text-xs font-bold">Load Saved World</button>
+                    </div>
+                    <button id="btn-eat-meat" class="w-full mt-2 rounded-xl bg-red-900 hover:bg-red-800 px-3 py-2 text-xs font-bold">Eat Cooked Meal / Ration</button>
+                    <div class="flex gap-2 mt-2">
+                        <button id="btn-drink-milk" class="flex-1 rounded-xl bg-sky-800 hover:bg-sky-700 px-3 py-2 text-xs font-bold">Drink Milk</button>
+                        <button id="btn-eat-egg" class="flex-1 rounded-xl bg-yellow-800 hover:bg-yellow-700 px-3 py-2 text-xs font-bold">Eat Egg</button>
+                    </div>
+                    <button id="btn-smelt" class="w-full mt-2 rounded-xl bg-orange-800 hover:bg-orange-700 px-3 py-2 text-xs font-bold">Smelt 1 Iron Ore (near furnace)</button>
+                    <button id="btn-toggle-music" class="w-full mt-2 rounded-xl bg-violet-800 hover:bg-violet-700 px-3 py-2 text-xs font-bold">Toggle Music</button>
+                    <div class="flex gap-2 mt-2">
+                        <button id="btn-store-items" class="flex-1 rounded-xl bg-amber-800 hover:bg-amber-700 px-3 py-2 text-xs font-bold">Store at Nearby Chest</button>
+                        <button id="btn-take-items" class="flex-1 rounded-xl bg-amber-700 hover:bg-amber-600 px-3 py-2 text-xs font-bold">Take from Chest</button>
+                    </div>
+                    <div id="save-status" class="text-[10px] text-stone-400 mt-2 text-center"></div>
+                </section>
+            </div>
+            <div class="mt-4 pt-3 border-t border-stone-800 text-xs text-stone-400 text-center">
+                Select a block to assign it to your active hotbar slot. Crafted tools improve combat and last for a limited number of uses.
+            </div>
+        </div>
+    </div>
+
+    <!-- Pause menu: goals, controls, and graphics settings -->
+    <div id="pause-modal" class="fixed inset-0 z-40 bg-black/75 backdrop-blur-md flex items-center justify-center hidden">
+        <div class="bg-stone-900 border border-stone-700 w-11/12 max-w-md p-6 rounded-3xl shadow-2xl space-y-4">
+            <div class="flex justify-between items-center"><h2 class="text-xl font-bold text-emerald-400">Paused</h2><button id="btn-resume" class="rounded-xl bg-emerald-700 px-4 py-2 font-bold">Resume</button></div>
+            <section><h3 class="font-bold text-amber-300">Goals & Achievements</h3><div id="quest-list" class="mt-2 text-sm text-stone-300 space-y-1"></div></section>
+            <section class="border-t border-stone-700 pt-3 space-y-3">
+                <label class="flex justify-between text-sm">Look sensitivity <input id="setting-sensitivity" type="range" min="1" max="10" value="5"></label>
+                <label class="flex justify-between text-sm items-center">Graphics quality <select id="setting-quality" class="bg-stone-800 rounded-lg p-1"><option value="0.75">Performance</option><option value="1" selected>Balanced</option><option value="1.5">High</option></select></label>
+                <button id="btn-toggle-sound" class="w-full rounded-xl bg-violet-800 hover:bg-violet-700 px-3 py-2 text-sm font-bold">Sound effects: On</button>
+            </section>
+        </div>
+    </div>
+
+    <!-- Mobile Touch Controls Overlay -->
+    <div id="mobile-controls" class="absolute inset-0 z-10 pointer-events-none flex flex-col justify-between p-6 hidden">
+        <div class="flex justify-between w-full pointer-events-auto">
+            <div class="flex flex-col gap-2">
+                <button id="btn-jump" class="w-16 h-16 bg-white/20 active:bg-white/40 border border-white/30 rounded-2xl flex items-center justify-center text-white backdrop-blur-md shadow-lg transition-all active:scale-95">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+                    </svg>
+                </button>
+            </div>
+            <div class="flex gap-3">
+                <button id="btn-break" class="w-16 h-16 bg-rose-600/70 active:bg-rose-600 border border-rose-400/50 rounded-2xl flex items-center justify-center text-white backdrop-blur-md shadow-lg font-bold text-sm transition-all active:scale-95">
+                    Break
+                </button>
+                <button id="btn-place" class="w-16 h-16 bg-emerald-600/70 active:bg-emerald-600 border border-emerald-400/50 rounded-2xl flex items-center justify-center text-white backdrop-blur-md shadow-lg font-bold text-sm transition-all active:scale-95">
+                    Place
+                </button>
+                <button id="btn-fight-mobile" class="w-16 h-16 bg-amber-600/80 active:bg-amber-500 border border-amber-300/60 rounded-2xl flex items-center justify-center text-white backdrop-blur-md shadow-lg font-bold text-sm transition-all active:scale-95">
+                    Fight
+                </button>
+                <button id="btn-animal-action" class="w-16 h-16 bg-sky-700/80 active:bg-sky-600 border border-sky-300/60 rounded-2xl flex items-center justify-center text-white backdrop-blur-md shadow-lg font-bold text-xs transition-all active:scale-95">
+                    Animal
+                </button>
+            </div>
+        </div>
+
+        <div class="flex justify-between items-end w-full pointer-events-auto pb-16">
+            <div id="joystick-base" class="relative w-36 h-36 bg-white/10 border border-white/20 rounded-full backdrop-blur-md flex items-center justify-center shadow-inner">
+                <div id="joystick-stick" class="absolute w-14 h-14 bg-white/60 rounded-full shadow-md transition-transform duration-75"></div>
+            </div>
+            <div class="text-xs text-white/60 bg-black/40 px-3.5 py-1.5 rounded-full backdrop-blur-sm border border-white/10">
+                Drag right side to look around
+            </div>
+        </div>
+        <button id="btn-sleep-mobile" class="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-auto w-16 h-12 bg-indigo-700/80 active:bg-indigo-600 border border-indigo-300/60 rounded-2xl flex items-center justify-center text-white backdrop-blur-md shadow-lg font-bold text-sm transition-all active:scale-95">Sleep</button>
+    </div>
+
+    <script>
+        const BLOCK_SIZE = 1;
+        const CHUNK_SIZE = 16;
+        const CHUNK_HEIGHT = 72; // Leaves room for the tallest generated terrain
+        const VIEW_DISTANCE = 2; // Reduced view distance for instant 60FPS
+
+        const BLOCKS = {
+            AIR: { id: 0, name: 'Air', solid: false },
+            GRASS: { id: 1, name: 'Grass Block', solid: true, colors: { top: 0x5c9e31, side: 0x8a6f47, bottom: 0x735132 } },
+            DIRT: { id: 2, name: 'Dirt', solid: true, color: 0x735132 },
+            STONE: { id: 3, name: 'Stone', solid: true, color: 0x828282 },
+            WOOD: { id: 4, name: 'Oak Log', solid: true, colors: { top: 0xb58450, side: 0x5c3a21, bottom: 0xb58450 } },
+            LEAVES: { id: 5, name: 'Pink Leaves', solid: true, color: 0xff8da1, transparent: true },
+            SAND: { id: 6, name: 'Sand', solid: true, color: 0xebd999 },
+            WATER: { id: 7, name: 'Water', solid: false, color: 0x2472ff, transparent: true, liquid: true },
+            COAL_ORE: { id: 8, name: 'Coal Ore', solid: true, color: 0x4a4a4a },
+            IRON_ORE: { id: 9, name: 'Iron Ore', solid: true, color: 0xd9ab79 },
+            BRICKS: { id: 10, name: 'Bricks', solid: true, color: 0xad4d3d },
+            PLANK: { id: 11, name: 'Wooden Plank', solid: true, color: 0xc4945c },
+            GLASS: { id: 12, name: 'Glass', solid: true, color: 0xd0e8ff, transparent: true },
+            FLOWER_RED: { id: 13, name: 'Red Rose', solid: false, color: 0xe02424 },
+            FLOWER_YELLOW: { id: 14, name: 'Dandelion', solid: false, color: 0xfacc15 },
+            NETHERRACK: { id: 15, name: 'Netherrack', solid: true, color: 0x74352f },
+            LAVA: { id: 16, name: 'Lava', solid: false, color: 0xff4b08, transparent: true, liquid: true },
+            GREEN_LEAVES: { id: 17, name: 'Green Leaves', solid: true, color: 0x4f9b45, transparent: true },
+            APPLE_SEEDS: { id: 18, name: 'Apple Seeds', solid: false, color: 0x7d9b3b },
+            APPLE: { id: 19, name: 'Apple', solid: false, color: 0xe53935 },
+            CHEST: { id: 20, name: 'Storage Chest', solid: true, color: 0x9a6638 },
+            TORCH: { id: 21, name: 'Torch', solid: false, color: 0xffd166 },
+            SLAB: { id: 22, name: 'Stone Slab', solid: true, color: 0x999999 },
+            DOOR: { id: 23, name: 'Wooden Door', solid: true, color: 0x9b6a3c },
+            SNOW: { id: 24, name: 'Snow', solid: true, color: 0xe8f4ff },
+            STAIRS: { id: 25, name: 'Stone Stairs', solid: true, color: 0x8b8b8b },
+            BED: { id: 26, name: 'Bed', solid: true, color: 0xb84444 },
+            FURNACE: { id: 27, name: 'Furnace', solid: true, color: 0x55504b },
+            MOSS: { id: 28, name: 'Swamp Moss', solid: true, color: 0x52734b },
+            DEEPSTONE: { id: 29, name: 'Deepstone', solid: true, color: 0x45454d }
+        };
+
+        const BLOCK_TYPES_BY_ID = new Map(Object.values(BLOCKS).map(block => [block.id, block]));
+        const resources = { wood: 0, dirt: 0, stone: 0, coal: 0, iron: 0, ironIngot: 0, sand: 0, snow: 0, seeds: 0, meat: 0, feathers: 0, planks: 0, sticks: 0, cookedMeat: 0, trailRations: 0, milk: 0, eggs: 0 };
+        const toolStats = {
+            'Wooden Pickaxe': { durability: 45, damage: 7 },
+            'Stone Pickaxe': { durability: 110, damage: 9 },
+            'Iron Pickaxe': { durability: 260, damage: 12 },
+            'Wooden Sword': { durability: 55, damage: 10 },
+            'Stone Sword': { durability: 130, damage: 15 },
+            'Iron Sword': { durability: 300, damage: 21 }
+        };
+        let equippedTool = null;
+        let toolDurability = 0;
+        let armorPoints = 0;
+        const recipes = [
+            { name: '4 Wooden Planks', cost: { wood: 1 }, give: { planks: 4 } },
+            { name: '4 Sticks', cost: { planks: 2 }, give: { sticks: 4 } },
+            { name: 'Wooden Pickaxe', cost: { planks: 3, sticks: 2 }, tool: true },
+            { name: 'Stone Pickaxe', cost: { stone: 3, sticks: 2 }, tool: true },
+            { name: 'Iron Pickaxe', cost: { ironIngot: 3, sticks: 2 }, tool: true },
+            { name: 'Wooden Sword', cost: { planks: 2, sticks: 1 }, tool: true },
+            { name: 'Stone Sword', cost: { stone: 2, sticks: 1 }, tool: true },
+            { name: 'Iron Sword', cost: { ironIngot: 2, sticks: 1 }, tool: true },
+            { name: 'Iron Armor', cost: { ironIngot: 8 }, armor: true },
+            { name: 'Cooked Meat (+ hunger)', cost: { meat: 1 }, give: { cookedMeat: 1 } },
+            { name: 'Furnace', cost: { stone: 8 }, block: 27 },
+            { name: 'Stone Slab', cost: { stone: 3 }, block: 22 },
+            { name: 'Torch', cost: { sticks: 1, coal: 1 }, block: 21 },
+            { name: 'Wooden Door', cost: { planks: 3 }, block: 23 },
+            { name: 'Stone Stairs', cost: { stone: 4 }, block: 25 },
+            { name: 'Bed', cost: { planks: 4, feathers: 2 }, block: 26 },
+            { name: '2 Trail Rations', cost: { cookedMeat: 1 }, give: { trailRations: 2 } }
+        ];
+        let chestStorage = {};
+        const seasonalSnowBlocks = new Set();
+
+        function findNearbyFurnace() {
+            const px = Math.floor(player.position.x), py = Math.floor(player.position.y - player.height), pz = Math.floor(player.position.z);
+            for (let x = px - 3; x <= px + 3; x++) for (let y = py - 2; y <= py + 3; y++) for (let z = pz - 3; z <= pz + 3; z++) {
+                if (getBlock(x, y, z) === BLOCKS.FURNACE.id && Math.hypot(x + 0.5 - player.position.x, z + 0.5 - player.position.z) <= 3) return true;
+            }
+            return false;
+        }
+
+        function smeltIron() {
+            if (!findNearbyFurnace()) { showNotification('Place a furnace nearby first'); return; }
+            if (resources.iron < 1 || resources.coal < 1) { showNotification('Smelting needs 1 iron ore and 1 coal'); return; }
+            resources.iron--; resources.coal--; resources.ironIngot++;
+            renderWorkshop();
+            showNotification('Iron ore smelted into an ingot');
+        }
+
+        function findNearbyChest() {
+            const px = Math.floor(player.position.x), py = Math.floor(player.position.y - player.height), pz = Math.floor(player.position.z);
+            let best = null, bestDistance = Infinity;
+            for (let x = px - 4; x <= px + 4; x++) for (let y = py - 2; y <= py + 3; y++) for (let z = pz - 4; z <= pz + 4; z++) {
+                if (getBlock(x, y, z) !== BLOCKS.CHEST.id) continue;
+                const distance = Math.hypot(x + 0.5 - player.position.x, z + 0.5 - player.position.z);
+                if (distance < bestDistance) { best = `${x},${y},${z}`; bestDistance = distance; }
+            }
+            return best;
+        }
+
+        function moveResourcesToChest(take = false) {
+            const chestKey = findNearbyChest();
+            if (!chestKey) { showNotification('Place a storage chest nearby first'); return; }
+            const stored = chestStorage[chestKey] || (chestStorage[chestKey] = {});
+            for (const name of Object.keys(resources)) {
+                if (take) {
+                    resources[name] += stored[name] || 0;
+                    stored[name] = 0;
+                } else {
+                    stored[name] = (stored[name] || 0) + resources[name];
+                    resources[name] = 0;
+                }
+            }
+            renderWorkshop();
+            showNotification(take ? 'Chest contents collected' : 'Resources stored in chest');
+        }
+        document.getElementById('btn-store-items').addEventListener('click', () => moveResourcesToChest(false));
+        document.getElementById('btn-take-items').addEventListener('click', () => moveResourcesToChest(true));
+        document.getElementById('btn-smelt').addEventListener('click', smeltIron);
+
+        function addResource(name, amount = 1) {
+            if (!(name in resources)) return;
+            resources[name] += amount;
+            renderWorkshop();
+        }
+
+        function renderWorkshop() {
+            const resourceEl = document.getElementById('resource-list');
+            const craftingEl = document.getElementById('crafting-list');
+            if (!resourceEl || !craftingEl) return;
+            resourceEl.innerHTML = gameMode === 'creative'
+                ? '<span class="text-cyan-300">Creative mode: unlimited blocks and tools</span>'
+                : Object.entries(resources).filter(([, count]) => count > 0)
+                    .map(([name, count]) => `<span class="inline-block mr-2 mb-1 rounded bg-stone-800 px-2 py-1">${name}: ${count}</span>`).join('') || 'No resources yet — break blocks to collect materials.';
+            resourceEl.innerHTML += `<div class="mt-2 text-emerald-300">Equipped: ${equippedTool || 'hand'}${equippedTool ? ` (${gameMode === 'creative' ? 'unlimited' : `${toolDurability} durability`})` : ''} · Armor: ${armorPoints}</div>`;
+            craftingEl.innerHTML = '';
+            recipes.forEach((recipe, index) => {
+                const canCraft = gameMode === 'creative' || Object.entries(recipe.cost).every(([name, count]) => resources[name] >= count);
+                const button = document.createElement('button');
+                button.className = `text-left rounded-lg border px-3 py-2 text-xs ${canCraft ? 'border-emerald-700 bg-stone-800 hover:bg-stone-700' : 'border-stone-800 bg-stone-900 text-stone-500'}`;
+                button.disabled = !canCraft;
+                button.textContent = `${recipe.name} — ${Object.entries(recipe.cost).map(([name, count]) => `${count} ${name}`).join(', ')}`;
+                button.onclick = () => craftRecipe(index);
+                craftingEl.appendChild(button);
+            });
+            if (gameMode === 'creative') {
+                Object.keys(toolStats).forEach(name => {
+                    const button = document.createElement('button');
+                    button.className = 'text-left rounded-lg border border-cyan-700 bg-cyan-950/60 hover:bg-cyan-900 px-3 py-2 text-xs';
+                    button.textContent = `Equip ${name} — Creative tool`;
+                    button.onclick = () => {
+                        equippedTool = name;
+                        toolDurability = Infinity;
+                        renderWorkshop();
+                        showNotification(`${name} equipped`);
+                    };
+                    craftingEl.appendChild(button);
+                });
+                const armorButton = document.createElement('button');
+                armorButton.className = 'text-left rounded-lg border border-cyan-700 bg-cyan-950/60 hover:bg-cyan-900 px-3 py-2 text-xs';
+                armorButton.textContent = 'Equip full Iron Armor';
+                armorButton.onclick = () => { armorPoints = 20; renderWorkshop(); showNotification('Full armor equipped'); };
+                craftingEl.appendChild(armorButton);
+            }
+        }
+
+        function craftRecipe(index) {
+            const recipe = recipes[index];
+            if (!recipe || (gameMode !== 'creative' && !Object.entries(recipe.cost).every(([name, count]) => resources[name] >= count))) return;
+            if (gameMode !== 'creative') Object.entries(recipe.cost).forEach(([name, count]) => { resources[name] -= count; });
+            if (recipe.tool) {
+                equippedTool = recipe.name;
+                toolDurability = gameMode === 'creative' ? Infinity : toolStats[recipe.name].durability;
+                showNotification(`${recipe.name} crafted and equipped`);
+            } else if (recipe.armor) {
+                armorPoints = Math.min(20, armorPoints + 8);
+                showNotification('Iron armor equipped — incoming damage reduced');
+            } else if (recipe.block) {
+                hotbarBlockIds[activeHotbarIndex] = recipe.block;
+                buildHotbarUI();
+                showNotification(`${recipe.name} crafted into your active slot`);
+            } else {
+                Object.entries(recipe.give).forEach(([name, count]) => { resources[name] += count; });
+                showNotification(`${recipe.name} crafted`);
+            }
+            renderWorkshop();
+        }
+
+        function saveWorld() {
+            try {
+                const data = {
+                    worldData: [...worldData], generatedChunks: [...generatedChunks], villageData: [...villageData],
+                    seasonalSnowBlocks: [...seasonalSnowBlocks],
+                    player: { x: player.position.x, y: player.position.y, z: player.position.z, health: player.health, hunger: player.hunger },
+                    resources, appleCount, bossDefeated, isHellWorld, cycleProgress, seasonProgress, equippedTool, toolDurability, armorPoints, chestStorage
+                };
+                localStorage.setItem('voxelcraft-save-v1', JSON.stringify(data));
+                document.getElementById('save-status').textContent = 'World saved in this browser.';
+                showNotification('World saved');
+                return true;
+            } catch (error) {
+                document.getElementById('save-status').textContent = 'Could not save: browser storage is unavailable.';
+                return false;
+            }
+        }
+
+        function loadWorld(silent = false) {
+            try {
+                const raw = localStorage.getItem('voxelcraft-save-v1');
+                if (!raw) return false;
+                const data = JSON.parse(raw);
+                if (!Array.isArray(data.worldData) || !data.player) return false;
+                chunks.forEach(group => scene.remove(group));
+                chunks.clear(); worldData.clear(); generatedChunks.clear(); villageData.clear();
+                portals.forEach(portal => scene.remove(portal));
+                portals.length = 0; activePortal = null;
+                for (const mobList of [cowMobs, chickenMobs, fishMobs, zombieMobs, villagerMobs]) {
+                    mobList.forEach(mob => scene.remove(mob.group));
+                    mobList.length = 0;
+                }
+                crossbowBolts.forEach(bolt => scene.remove(bolt.mesh));
+                crossbowBolts.length = 0;
+                data.worldData.forEach(([key, value]) => worldData.set(key, value));
+                seasonalSnowBlocks.clear();
+                (data.seasonalSnowBlocks || []).forEach(key => seasonalSnowBlocks.add(key));
+                (data.generatedChunks || []).forEach(key => generatedChunks.add(key));
+                (data.villageData || []).forEach(([key, value]) => villageData.set(key, value));
+                Object.assign(resources, data.resources || {});
+                Object.assign(player, { health: data.player.health || 20, hunger: data.player.hunger ?? 20 });
+                player.position.set(data.player.x, data.player.y, data.player.z);
+                appleCount = data.appleCount || 0;
+                bossDefeated = !!data.bossDefeated;
+                isHellWorld = !!data.isHellWorld;
+                cycleProgress = data.cycleProgress ?? cycleProgress;
+                seasonProgress = data.seasonProgress ?? seasonProgress;
+                currentSeasonIndex = Math.floor(seasonProgress * seasonNames.length);
+                setWinterSnow(currentSeasonIndex === 3);
+                equippedTool = data.equippedTool || null;
+                toolDurability = data.toolDurability || 0;
+                armorPoints = data.armorPoints || 0;
+                chestStorage = data.chestStorage || {};
+                if (!silent) showNotification('Saved world loaded');
+                renderWorkshop(); updateAppleButton(); updateHungerDisplay();
+                document.getElementById('health-display').textContent = gameMode === 'creative'
+                    ? 'Health: Invulnerable' : `Health: ${player.health} / 20`;
+                return true;
+            } catch (error) {
+                if (!silent) showNotification('Could not load the saved world');
+                return false;
+            }
+        }
+
+        const hotbarBlockIds = [1, 3, 2, 4, 5, 6, 10, 11, 18];
+        let activeHotbarIndex = 0;
+
+        function pseudoNoise(x, z) {
+            const n = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453123;
+            return n - Math.floor(n);
+        }
+
+        function getNoise(x, z) {
+            let total = 0;
+            let frequency = 0.02;
+            let amplitude = 16;
+            for (let i = 0; i < 2; i++) {
+                total += Math.sin(x * frequency) * Math.cos(z * frequency) * amplitude;
+                amplitude *= 0.5;
+                frequency *= 2.0;
+            }
+            let mountain = Math.max(0, Math.sin(x * 0.01) * Math.cos(z * 0.01) * 25);
+            return Math.floor(14 + total + mountain);
+        }
+
+        function getBiome(x, z) {
+            const climate = Math.sin(x * 0.009) + Math.cos(z * 0.011);
+            if (Math.sin(x * 0.013 + z * 0.009) * Math.cos(z * 0.012 - x * 0.004) < -0.72) return 'swamp';
+            if (climate > 1.15) return 'desert';
+            if (climate < -1.15) return 'alpine';
+            if (Math.sin(x * 0.025) * Math.cos(z * 0.025) > 0.45) return 'forest';
+            return 'plains';
+        }
+
+        function isCaveCell(x, y, z) {
+            if (y < 4 || y > getNoise(x, z) - 3) return false;
+            const a = pseudoNoise(x * 0.21 + y * 0.13, z * 0.21 - y * 0.11);
+            const b = pseudoNoise(x * 0.09 - y * 0.07, z * 0.09 + y * 0.08);
+            return a > 0.78 && b > 0.48;
+        }
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87ceeb);
+        scene.fog = new THREE.FogExp2(0x87ceeb, 0.018);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+        document.body.appendChild(renderer.domElement);
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+        scene.add(ambientLight);
+
+        const sunLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        sunLight.position.set(40, 100, 40);
+        scene.add(sunLight);
+
+        function createGlowTexture(innerColor, outerColor) {
+            const canvas = document.createElement('canvas');
+            canvas.width = canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            const gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+            gradient.addColorStop(0, innerColor);
+            gradient.addColorStop(0.12, innerColor);
+            gradient.addColorStop(0.38, outerColor);
+            gradient.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 128, 128);
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.needsUpdate = true;
+            return texture;
+        }
+
+        const sunGroup = new THREE.Group();
+        const sun = new THREE.Mesh(
+            new THREE.SphereGeometry(5.5, 32, 24),
+            new THREE.MeshBasicMaterial({ color: 0xffe477 })
+        );
+        const sunGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: createGlowTexture('rgba(255,245,190,0.9)', 'rgba(255,170,70,0)'),
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        }));
+        sunGlow.scale.set(34, 34, 1);
+        sunGroup.add(sunGlow, sun);
+        scene.add(sunGroup);
+
+        const moonGroup = new THREE.Group();
+        const moon = new THREE.Mesh(
+            new THREE.SphereGeometry(3, 16, 12),
+            new THREE.MeshBasicMaterial({ color: 0xe3edff })
+        );
+        const moonGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: createGlowTexture('rgba(205,225,255,0.75)', 'rgba(110,155,255,0)'),
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        }));
+        moonGlow.scale.set(20, 20, 1);
+        moonGlow.scale.set(38, 38, 1);
+        moonGroup.add(moonGlow, moon);
+        scene.add(moonGroup);
+
+        const cloudMaterial = new THREE.MeshLambertMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.78,
+            depthWrite: false
+        });
+        const cloudGeometry = new THREE.BoxGeometry(1, 1, 1);
+        const clouds = [];
+        for (let i = 0; i < 18; i++) {
+            const cloud = new THREE.Group();
+            const pieces = [
+                [-1.4, 0, 0, 2.8, 0.65, 1.2],
+                [0.4, 0, 0, 2.6, 0.8, 1.5],
+                [-0.4, 0.3, 0, 1.8, 0.8, 1.4],
+                [1.5, -0.1, 0, 1.8, 0.55, 1.1]
+            ];
+            pieces.forEach(([x, y, z, sx, sy, sz]) => {
+                const puff = new THREE.Mesh(cloudGeometry, cloudMaterial);
+                puff.position.set(x, y, z);
+                puff.scale.set(sx, sy, sz);
+                cloud.add(puff);
+            });
+            scene.add(cloud);
+            clouds.push({ group: cloud, offsetX: (i % 4 - 1.5) * 23, offsetZ: (Math.floor(i / 4) - 0.5) * 34, height: 34 + (i % 3) * 2, drift: i * 5 });
+        }
+
+        const DAY_LENGTH_SECONDS = 180;
+        const SEASON_LENGTH_SECONDS = DAY_LENGTH_SECONDS * 4;
+        const seasonNames = ['Spring', 'Summer', 'Autumn', 'Winter'];
+        const seasonColors = [
+            new THREE.Color(0x8fcf8a), // Spring: fresh green
+            new THREE.Color(0xffd166), // Summer: warm gold
+            new THREE.Color(0xd98952), // Autumn: amber
+            new THREE.Color(0xb8d8f0)  // Winter: cool blue
+        ];
+        let seasonProgress = 0;
+        let currentSeasonIndex = 0;
+        let cycleProgress = 8 / 24; // Start at 8:00 AM
+        const daySkyColor = new THREE.Color(0x87ceeb);
+        const nightSkyColor = new THREE.Color(0x080d24);
+        const twilightSkyColor = new THREE.Color(0xff895c);
+        const currentSkyColor = new THREE.Color();
+        let nightTime = false;
+
+        const snowParticleCount = 650;
+        const snowPositions = new Float32Array(snowParticleCount * 3);
+        for (let i = 0; i < snowParticleCount; i++) {
+            snowPositions[i * 3] = (Math.random() - 0.5) * 48;
+            snowPositions[i * 3 + 1] = Math.random() * 30 - 5;
+            snowPositions[i * 3 + 2] = (Math.random() - 0.5) * 48;
+        }
+        const snowGeometry = new THREE.BufferGeometry();
+        snowGeometry.setAttribute('position', new THREE.BufferAttribute(snowPositions, 3));
+        const snowfall = new THREE.Points(snowGeometry, new THREE.PointsMaterial({
+            color: 0xf5fbff, size: 0.13, transparent: true, opacity: 0.9, sizeAttenuation: true,
+            depthWrite: false
+        }));
+        snowfall.visible = false;
+        scene.add(snowfall);
+
+        function updateSnowfall(delta) {
+            const active = !isHellWorld && currentSeasonIndex === 3;
+            snowfall.visible = active;
+            if (!active) return;
+            snowfall.position.set(player.position.x, player.position.y, player.position.z);
+            for (let i = 0; i < snowParticleCount; i++) {
+                const index = i * 3;
+                snowPositions[index] += Math.sin(performance.now() * 0.0005 + i) * delta * 0.35;
+                snowPositions[index + 1] -= delta * (2.2 + (i % 5) * 0.35);
+                if (snowPositions[index + 1] < -5) {
+                    snowPositions[index] = (Math.random() - 0.5) * 48;
+                    snowPositions[index + 1] = 25 + Math.random() * 10;
+                    snowPositions[index + 2] = (Math.random() - 0.5) * 48;
+                }
+            }
+            snowGeometry.attributes.position.needsUpdate = true;
+        }
+
+        const rainParticleCount = 900;
+        const rainPositions = new Float32Array(rainParticleCount * 3);
+        for (let i = 0; i < rainParticleCount; i++) {
+            rainPositions[i * 3] = (Math.random() - 0.5) * 42;
+            rainPositions[i * 3 + 1] = Math.random() * 30 - 5;
+            rainPositions[i * 3 + 2] = (Math.random() - 0.5) * 42;
+        }
+        const rainGeometry = new THREE.BufferGeometry();
+        rainGeometry.setAttribute('position', new THREE.BufferAttribute(rainPositions, 3));
+        const rain = new THREE.Points(rainGeometry, new THREE.PointsMaterial({
+            color: 0xb8d8ff, size: 0.11, transparent: true, opacity: 0.8,
+            sizeAttenuation: true, depthWrite: false
+        }));
+        rain.visible = false;
+        scene.add(rain);
+        let rainUntil = 0;
+        let nextRainCheck = performance.now() + 30000 + Math.random() * 45000;
+
+        function updateRain(delta, now) {
+            const weatherEl = document.getElementById('weather-display');
+            if (isHellWorld || currentSeasonIndex === 3) {
+                rainUntil = 0;
+                rain.visible = false;
+                weatherEl.textContent = currentSeasonIndex === 3 && !isHellWorld ? 'Weather: Snowing' : 'Weather: Clear';
+                return;
+            }
+
+            if (rainUntil && now >= rainUntil) {
+                rainUntil = 0;
+                nextRainCheck = now + 30000 + Math.random() * 60000;
+            }
+            if (!rainUntil && now >= nextRainCheck) {
+                // Rainstorms occur occasionally and last about 20–40 seconds.
+                if (Math.random() < 0.65) rainUntil = now + 20000 + Math.random() * 20000;
+                else nextRainCheck = now + 20000;
+            }
+
+            const raining = rainUntil > now;
+            rain.visible = raining;
+            weatherEl.textContent = raining ? 'Weather: Rain' : 'Weather: Clear';
+            if (!raining) return;
+
+            rain.position.set(player.position.x, player.position.y, player.position.z);
+            for (let i = 0; i < rainParticleCount; i++) {
+                const index = i * 3;
+                rainPositions[index] -= delta * 1.8;
+                rainPositions[index + 1] -= delta * 18;
+                if (rainPositions[index + 1] < -5) {
+                    rainPositions[index] = (Math.random() - 0.5) * 42;
+                    rainPositions[index + 1] = 25 + Math.random() * 8;
+                    rainPositions[index + 2] = (Math.random() - 0.5) * 42;
+                }
+            }
+            rainGeometry.attributes.position.needsUpdate = true;
+        }
+
+        function applyWinterSnowToChunk(cx, cz) {
+            let changed = false;
+            for (let x = cx * CHUNK_SIZE; x < (cx + 1) * CHUNK_SIZE; x++) {
+                for (let z = cz * CHUNK_SIZE; z < (cz + 1) * CHUNK_SIZE; z++) {
+                    for (let y = CHUNK_HEIGHT - 2; y >= 1; y--) {
+                        if (getBlock(x, y, z) === BLOCKS.GRASS.id && getBlock(x, y + 1, z) === null) {
+                            const key = `${x},${y},${z}`;
+                            worldData.set(key, BLOCKS.SNOW.id);
+                            seasonalSnowBlocks.add(key);
+                            changed = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            return changed;
+        }
+
+        function setWinterSnow(enabled) {
+            const changedChunks = new Set();
+            if (enabled) {
+                for (const [key, id] of [...worldData]) {
+                    if (id !== BLOCKS.GRASS.id) continue;
+                    const [x, y, z] = key.split(',').map(Number);
+                    if (getBlock(x, y + 1, z) !== null) continue;
+                    worldData.set(key, BLOCKS.SNOW.id);
+                    seasonalSnowBlocks.add(key);
+                    changedChunks.add(`${Math.floor(x / CHUNK_SIZE)},${Math.floor(z / CHUNK_SIZE)}`);
+                }
+            } else {
+                for (const key of seasonalSnowBlocks) {
+                    if (getBlock(...key.split(',').map(Number)) !== BLOCKS.SNOW.id) continue;
+                    const [x, , z] = key.split(',').map(Number);
+                    worldData.set(key, BLOCKS.GRASS.id);
+                    changedChunks.add(`${Math.floor(x / CHUNK_SIZE)},${Math.floor(z / CHUNK_SIZE)}`);
+                }
+                seasonalSnowBlocks.clear();
+            }
+            changedChunks.forEach(key => {
+                if (chunks.has(key)) {
+                    const [cx, cz] = key.split(',').map(Number);
+                    rebuildChunk(cx, cz);
+                }
+            });
+        }
+
+        function updateDayNightCycle(delta) {
+            cycleProgress = (cycleProgress + delta / DAY_LENGTH_SECONDS) % 1;
+            seasonProgress = (seasonProgress + delta / SEASON_LENGTH_SECONDS) % 1;
+            const previousSeasonIndex = currentSeasonIndex;
+            currentSeasonIndex = Math.floor(seasonProgress * seasonNames.length);
+            if (currentSeasonIndex !== previousSeasonIndex) setWinterSnow(currentSeasonIndex === 3);
+            const hours = cycleProgress * 24;
+            const sunAngle = cycleProgress * Math.PI * 2 - Math.PI / 2;
+            const sunHeight = Math.sin(sunAngle);
+            const daylight = THREE.MathUtils.smoothstep(sunHeight, -0.2, 0.18);
+            const twilight = 1 - THREE.MathUtils.smoothstep(Math.abs(sunHeight), 0.02, 0.35);
+            const nightNow = daylight <= 0.35;
+            if (nightNow !== nightTime) {
+                nightTime = nightNow;
+                if (nightTime && !isHellWorld) {
+                    growAppleTreesAtNight();
+                    for (const key of chunks.keys()) {
+                        const [cx, cz] = key.split(',').map(Number);
+                        spawnZombieForChunk(cx, cz);
+                        spawnSkeletonForChunk(cx, cz);
+                    }
+                } else {
+                    for (let i = zombieMobs.length - 1; i >= 0; i--) {
+                        if (!zombieMobs[i].isBoss) {
+                            scene.remove(zombieMobs[i].group);
+                            zombieMobs.splice(i, 1);
+                        }
+                    }
+                }
+            }
+
+            currentSkyColor.copy(nightSkyColor).lerp(daySkyColor, daylight);
+            currentSkyColor.lerp(twilightSkyColor, twilight * 0.75);
+            if (!isHellWorld) currentSkyColor.lerp(seasonColors[currentSeasonIndex], 0.12 + daylight * 0.08);
+            const rainingNow = !isHellWorld && currentSeasonIndex !== 3 && rainUntil > performance.now();
+            const weatherDim = rainingNow ? 0.82 : 1;
+            if (rainingNow) currentSkyColor.multiplyScalar(weatherDim);
+            if (isHellWorld) currentSkyColor.set(0x3b100c);
+            scene.background.copy(currentSkyColor);
+            scene.fog.color.copy(currentSkyColor);
+
+            ambientLight.intensity = isHellWorld ? 0.48 : (0.10 + daylight * 0.54) * weatherDim;
+            ambientLight.color.set(isHellWorld ? 0xff8060 : 0xffffff);
+            if (!isHellWorld) ambientLight.color.lerp(seasonColors[currentSeasonIndex], 0.12);
+            sunLight.intensity = isHellWorld ? 0.18 : (0.05 + daylight * 0.82) * weatherDim;
+            sunLight.position.set(player.position.x + Math.cos(sunAngle) * 100, player.position.y + sunHeight * 100, player.position.z + 40);
+
+            const orbitRadius = 95;
+            sunGroup.position.set(
+                player.position.x + Math.cos(sunAngle) * orbitRadius,
+                player.position.y + sunHeight * orbitRadius,
+                player.position.z + 35
+            );
+            const moonAngle = sunAngle + Math.PI;
+            const moonHeight = Math.sin(moonAngle);
+            moonGroup.position.set(
+                player.position.x + Math.cos(moonAngle) * orbitRadius,
+                player.position.y + moonHeight * orbitRadius,
+                player.position.z + 35
+            );
+            clouds.forEach(cloud => {
+                cloud.group.position.set(
+                    player.position.x + cloud.offsetX + cycleProgress * 24 + cloud.drift,
+                    player.position.y + cloud.height,
+                    player.position.z + cloud.offsetZ
+                );
+            });
+
+            const hour = Math.floor(hours) % 24;
+            const minute = Math.floor((hours - hour) * 60);
+            const period = hour < 12 ? 'AM' : 'PM';
+            const displayHour = hour % 12 || 12;
+            document.getElementById('time-display').innerText =
+                `Time: ${displayHour}:${String(minute).padStart(2, '0')} ${period}`;
+            document.getElementById('time-display').className = daylight > 0.35 ? 'text-amber-300' : 'text-indigo-300';
+            const seasonDisplay = document.getElementById('season-display');
+            seasonDisplay.innerText = `Season: ${seasonNames[currentSeasonIndex]}`;
+            seasonDisplay.className = ['text-lime-300', 'text-yellow-300', 'text-orange-300', 'text-sky-300'][currentSeasonIndex];
+        }
+
+        // Single optimized box geometry reused across all blocks
+        const cubeGeometry = new THREE.BoxGeometry(BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+        const materialCache = {};
+        let bedVisualMaterials = null;
+
+        function createCachedTexture(colorHex) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 32; canvas.height = 32;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#' + colorHex.toString(16).padStart(6, '0');
+            ctx.fillRect(0, 0, 32, 32);
+            for (let i = 0; i < 50; i++) {
+                ctx.fillStyle = Math.random() > 0.5 ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)';
+                ctx.fillRect(Math.random() * 32, Math.random() * 32, 2, 2);
+            }
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.magFilter = THREE.NearestFilter;
+            texture.minFilter = THREE.NearestFilter;
+            return texture;
+        }
+
+        function getBlockMaterial(blockType) {
+            if (materialCache[blockType.id]) return materialCache[blockType.id];
+            let mat;
+            if (blockType.id === BLOCKS.BED.id) {
+                const quilt = document.createElement('canvas');
+                quilt.width = 64; quilt.height = 64;
+                const ctx = quilt.getContext('2d');
+                ctx.fillStyle = '#c94755';
+                ctx.fillRect(0, 0, 64, 64);
+                ctx.fillStyle = '#f3d9b7';
+                for (let y = 4; y < 64; y += 16) for (let x = 4; x < 64; x += 16) {
+                    ctx.fillRect(x, y, 8, 8);
+                    ctx.fillRect(x + 8, y + 8, 8, 8);
+                }
+                ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+                ctx.lineWidth = 2;
+                for (let offset = 0; offset < 64; offset += 16) {
+                    ctx.beginPath(); ctx.moveTo(offset, 0); ctx.lineTo(offset, 64); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(0, offset); ctx.lineTo(64, offset); ctx.stroke();
+                }
+                const quiltTexture = new THREE.CanvasTexture(quilt);
+                quiltTexture.magFilter = THREE.NearestFilter;
+                quiltTexture.minFilter = THREE.NearestFilter;
+                const woodTexture = createCachedTexture(0x86512f);
+                const wood = new THREE.MeshLambertMaterial({ map: woodTexture });
+                const fabric = new THREE.MeshLambertMaterial({ map: quiltTexture });
+                const pillow = new THREE.MeshLambertMaterial({ color: 0xfff0dc });
+                bedVisualMaterials = { wood, fabric, pillow };
+                mat = [wood, wood, fabric, wood, wood, wood];
+            } else if (blockType.colors) {
+                const topTex = createCachedTexture(blockType.colors.top);
+                const sideTex = createCachedTexture(blockType.colors.side);
+                const botTex = createCachedTexture(blockType.colors.bottom);
+                mat = [
+                    new THREE.MeshLambertMaterial({ map: sideTex }),
+                    new THREE.MeshLambertMaterial({ map: sideTex }),
+                    new THREE.MeshLambertMaterial({ map: topTex }),
+                    new THREE.MeshLambertMaterial({ map: botTex }),
+                    new THREE.MeshLambertMaterial({ map: sideTex }),
+                    new THREE.MeshLambertMaterial({ map: sideTex })
+                ];
+            } else {
+                const tex = createCachedTexture(blockType.color);
+                mat = new THREE.MeshLambertMaterial({
+                    map: tex,
+                    transparent: blockType.transparent || false,
+                    opacity: blockType.liquid ? 0.42 : (blockType.transparent ? 0.8 : 1.0),
+                    depthWrite: !blockType.liquid
+                });
+            }
+            materialCache[blockType.id] = mat;
+            return mat;
+        }
+
+        const chunks = new Map();
+        const worldData = new Map();
+        const generatedChunks = new Set();
+        let isHellWorld = false;
+
+        function getBlock(x, y, z) {
+            return worldData.get(`${x},${y},${z}`) || null;
+        }
+
+        function setBlock(x, y, z, id) {
+            const cx = Math.floor(x / CHUNK_SIZE);
+            const cz = Math.floor(z / CHUNK_SIZE);
+            ensureChunkData(cx, cz);
+            const chunkLoaded = chunks.has(`${cx},${cz}`);
+
+            const key = `${x},${y},${z}`;
+            if (id === 0) worldData.delete(key);
+            else worldData.set(key, id);
+
+            if (chunkLoaded) rebuildChunk(cx, cz);
+
+            const localX = x - cx * CHUNK_SIZE;
+            const localZ = z - cz * CHUNK_SIZE;
+            if (localX === 0 && chunks.has(`${cx - 1},${cz}`)) rebuildChunk(cx - 1, cz);
+            if (localX === CHUNK_SIZE - 1 && chunks.has(`${cx + 1},${cz}`)) rebuildChunk(cx + 1, cz);
+            if (localZ === 0 && chunks.has(`${cx},${cz - 1}`)) rebuildChunk(cx, cz - 1);
+            if (localZ === CHUNK_SIZE - 1 && chunks.has(`${cx},${cz + 1}`)) rebuildChunk(cx, cz + 1);
+        }
+
+        function generateTree(x, y, z) {
+            const trunkHeight = 4;
+            const leafBlock = pseudoNoise(x * 2.7, z * 3.1) > 0.52 ? BLOCKS.GREEN_LEAVES : BLOCKS.LEAVES;
+            for (let dy = 0; dy < trunkHeight; dy++) {
+                worldData.set(`${x},${y + dy},${z}`, BLOCKS.WOOD.id);
+            }
+            for (let ly = y + trunkHeight - 1; ly <= y + trunkHeight + 1; ly++) {
+                let r = ly === y + trunkHeight + 1 ? 1 : 2;
+                for (let lx = -r; lx <= r; lx++) {
+                    for (let lz = -r; lz <= r; lz++) {
+                        if (Math.abs(lx) === r && Math.abs(lz) === r && ly === y + trunkHeight + 1) continue;
+                        const bx = x + lx, bz = z + lz;
+                        if (!worldData.has(`${bx},${ly},${bz}`)) {
+                            worldData.set(`${bx},${ly},${bz}`, leafBlock.id);
+                        }
+                    }
+                }
+            }
+        }
+
+        function growAppleTreesAtNight() {
+            const seeds = [];
+            for (const [key, id] of worldData) {
+                if (id === BLOCKS.APPLE_SEEDS.id) seeds.push(key);
+            }
+
+            const changedChunks = new Set();
+            for (const key of seeds) {
+                const [x, y, z] = key.split(',').map(Number);
+                const soil = BLOCK_TYPES_BY_ID.get(getBlock(x, y - 1, z));
+                if (!soil || (soil.id !== BLOCKS.GRASS.id && soil.id !== BLOCKS.DIRT.id)) continue;
+
+                worldData.delete(key);
+                for (let dy = 0; dy < 4; dy++) worldData.set(`${x},${y + dy},${z}`, BLOCKS.WOOD.id);
+                for (let ly = y + 2; ly <= y + 5; ly++) {
+                    const radius = ly === y + 5 ? 1 : 2;
+                    for (let dx = -radius; dx <= radius; dx++) {
+                        for (let dz = -radius; dz <= radius; dz++) {
+                            if (Math.abs(dx) === radius && Math.abs(dz) === radius && ly === y + 5) continue;
+                            const leafKey = `${x + dx},${ly},${z + dz}`;
+                            if (!worldData.has(leafKey)) worldData.set(leafKey, BLOCKS.GREEN_LEAVES.id);
+                        }
+                    }
+                }
+
+                // Red fruit hangs around the outside of the canopy so it is easy to spot and harvest.
+                for (const [dx, dy, dz] of [[-2, 3, 0], [2, 3, 0], [0, 3, -2], [0, 3, 2], [0, 4, 1]]) {
+                    worldData.set(`${x + dx},${y + dy},${z + dz}`, BLOCKS.APPLE.id);
+                }
+                for (let cx = Math.floor((x - 2) / CHUNK_SIZE); cx <= Math.floor((x + 2) / CHUNK_SIZE); cx++) {
+                    for (let cz = Math.floor((z - 2) / CHUNK_SIZE); cz <= Math.floor((z + 2) / CHUNK_SIZE); cz++) {
+                        changedChunks.add(`${cx},${cz}`);
+                    }
+                }
+            }
+            changedChunks.forEach(key => {
+                if (chunks.has(key)) {
+                    const [cx, cz] = key.split(',').map(Number);
+                    rebuildChunk(cx, cz);
+                }
+            });
+            if (seeds.length) showNotification('Your apple seeds grew overnight!');
+        }
+
+        function generateVillage(cx, cz) {
+            const startX = cx * CHUNK_SIZE;
+            const startZ = cz * CHUNK_SIZE;
+            const groundY = getNoise(startX + 8, startZ + 8);
+            const villageKey = `${cx},${cz}`;
+            const village = { cx, cz, startX, startZ, groundY };
+
+            // Level a compact plaza so the houses, paths, and villagers share one floor.
+            for (let x = startX + 2; x <= startX + 14; x++) {
+                for (let z = startZ + 2; z <= startZ + 14; z++) {
+                    for (let y = 1; y < CHUNK_HEIGHT; y++) {
+                        const key = `${x},${y},${z}`;
+                        if (y < groundY - 3) worldData.set(key, BLOCKS.STONE.id);
+                        else if (y < groundY) worldData.set(key, BLOCKS.DIRT.id);
+                        else if (y === groundY) worldData.set(key, BLOCKS.GRASS.id);
+                        else worldData.delete(key);
+                    }
+                }
+            }
+
+            const put = (x, y, z, block) => worldData.set(`${x},${y},${z}`, block.id);
+            const house = (x, z) => {
+                const floorY = groundY + 1;
+                for (let dx = 0; dx < 4; dx++) {
+                    for (let dz = 0; dz < 4; dz++) put(x + dx, floorY, z + dz, BLOCKS.PLANK);
+                }
+                for (let dy = 1; dy <= 3; dy++) {
+                    for (let dx = 0; dx < 4; dx++) {
+                        for (let dz = 0; dz < 4; dz++) {
+                            const edge = dx === 0 || dx === 3 || dz === 0 || dz === 3;
+                            if (!edge) continue;
+                            const frontDoor = dz === 3 && dx === 1 && dy <= 2;
+                            if (frontDoor) continue;
+                            const window = dy === 2 && ((dz === 0 && dx === 1) || (dx === 0 && dz === 1) || (dx === 3 && dz === 2));
+                            put(x + dx, groundY + dy, z + dz, window ? BLOCKS.GLASS :
+                                (dx === 0 || dx === 3) ? BLOCKS.WOOD : BLOCKS.PLANK);
+                        }
+                    }
+                }
+                // Layered brick roof gives the small houses a peaked, voxel-style silhouette.
+                for (let dz = -1; dz <= 4; dz++) {
+                    put(x - 1, groundY + 4, z + dz, BLOCKS.BRICKS);
+                    put(x + 4, groundY + 4, z + dz, BLOCKS.BRICKS);
+                    put(x, groundY + 5, z + dz, BLOCKS.BRICKS);
+                    put(x + 1, groundY + 5, z + dz, BLOCKS.BRICKS);
+                    put(x + 2, groundY + 5, z + dz, BLOCKS.BRICKS);
+                    put(x + 3, groundY + 5, z + dz, BLOCKS.BRICKS);
+                }
+            };
+
+            house(startX + 3, startZ + 3);
+            house(startX + 9, startZ + 3);
+
+            // Broad stone lanes connect both doorways and form a road around the plaza.
+            for (let z = startZ + 2; z <= startZ + 14; z++) {
+                for (const x of [startX + 4, startX + 5, startX + 10, startX + 11]) {
+                    put(x, groundY, z, BLOCKS.STONE);
+                }
+            }
+            for (let x = startX + 2; x <= startX + 14; x++) {
+                put(x, groundY, startZ + 8, BLOCKS.STONE);
+                put(x, groundY, startZ + 9, BLOCKS.STONE);
+                put(x, groundY, startZ + 10, BLOCKS.STONE);
+            }
+            for (let dx = 0; dx < 3; dx++) {
+                for (let dz = 0; dz < 3; dz++) {
+                    if (dx === 1 && dz === 1) put(startX + 7 + dx, groundY + 1, startZ + 8 + dz, BLOCKS.WATER);
+                    else if (dx === 0 || dx === 2 || dz === 0 || dz === 2) put(startX + 7 + dx, groundY + 1, startZ + 8 + dz, BLOCKS.STONE);
+                }
+            }
+            villageData.set(villageKey, village);
+        }
+
+        const villageData = new Map();
+
+        function hellTerrainHeight(x, z) {
+            return Math.floor(18 + Math.sin(x * 0.075) * 5 + Math.cos(z * 0.062) * 5 +
+                Math.sin((x + z) * 0.035) * 4 + Math.cos((x - z) * 0.025) * 3);
+        }
+
+        function generateChunkData(cx, cz) {
+            const startX = cx * CHUNK_SIZE;
+            const startZ = cz * CHUNK_SIZE;
+            const trees = [];
+
+            if (isHellWorld) {
+                for (let x = 0; x < CHUNK_SIZE; x++) {
+                    for (let z = 0; z < CHUNK_SIZE; z++) {
+                        const wx = startX + x, wz = startZ + z;
+                        const surface = Math.max(3, hellTerrainHeight(wx, wz));
+                        for (let y = 0; y <= surface; y++) {
+                            worldData.set(`${wx},${y},${wz}`, BLOCKS.NETHERRACK.id);
+                        }
+                        if (surface < 18) {
+                            for (let y = surface + 1; y <= 18; y++) {
+                                worldData.set(`${wx},${y},${wz}`, BLOCKS.LAVA.id);
+                            }
+                        }
+                    }
+                }
+                return;
+            }
+
+            for (let x = 0; x < CHUNK_SIZE; x++) {
+                for (let z = 0; z < CHUNK_SIZE; z++) {
+                    const wx = startX + x, wz = startZ + z;
+                    const surface = getNoise(wx, wz);
+                    worldData.set(`${wx},0,${wz}`, BLOCKS.STONE.id);
+
+                    for (let y = 1; y < CHUNK_HEIGHT; y++) {
+                        const key = `${wx},${y},${wz}`;
+                        if (worldData.has(key)) continue;
+
+                        if (y < surface - 3) {
+                            if (isCaveCell(wx, y, wz)) continue;
+                            if (y < 12 && pseudoNoise(wx * 3.1 + y, wz * 4.7 - y) > 0.986) {
+                                worldData.set(key, BLOCKS.IRON_ORE.id);
+                            } else if (y < 30 && pseudoNoise(wx * 5.3 - y, wz * 2.9 + y) > 0.975) {
+                                worldData.set(key, BLOCKS.COAL_ORE.id);
+                            } else worldData.set(key, y < 8 ? BLOCKS.DEEPSTONE.id : BLOCKS.STONE.id);
+                        } else if (y < surface) worldData.set(key, BLOCKS.DIRT.id);
+                        else if (y === surface) {
+                            const biome = getBiome(wx, wz);
+                            if (surface <= 10 || biome === 'desert') worldData.set(key, BLOCKS.SAND.id);
+                            else if (biome === 'alpine') worldData.set(key, BLOCKS.SNOW.id);
+                            else if (biome === 'swamp') worldData.set(key, BLOCKS.MOSS.id);
+                            else {
+                                worldData.set(key, BLOCKS.GRASS.id);
+                                if (biome === 'forest' && pseudoNoise(wx * 12.3, wz * 45.6) > 0.989 && surface > 12 && surface < 30) {
+                                    trees.push({ x: wx, y: y + 1, z: wz });
+                                }
+                            }
+                        } else if (y <= 9 && y > surface) {
+                            worldData.set(key, BLOCKS.WATER.id);
+                        }
+                    }
+                }
+            }
+            trees.forEach(t => generateTree(t.x, t.y, t.z));
+            // Keep the starter village, then seed additional settlements throughout the world.
+            const hasVillage = (cx === 0 && cz === -1) || pseudoNoise(cx * 17.31 + 4, cz * 29.73 - 8) > 0.88;
+            if (hasVillage) generateVillage(cx, cz);
+            else if (pseudoNoise(cx * 41.7 + 12, cz * 37.2 - 9) > 0.955) {
+                // Small abandoned stone shrines are landmarks with a guaranteed starter cache.
+                const rx = startX + 7, rz = startZ + 7, floor = getNoise(rx, rz);
+                for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) {
+                    worldData.set(`${rx + dx},${floor},${rz + dz}`, BLOCKS.STONE.id);
+                    if (Math.abs(dx) === 2 || Math.abs(dz) === 2) {
+                        if ((dx + dz) % 2 === 0) worldData.set(`${rx + dx},${floor + 1},${rz + dz}`, BLOCKS.BRICKS.id);
+                    }
+                }
+                worldData.set(`${rx},${floor + 1},${rz}`, BLOCKS.CHEST.id);
+                chestStorage[`${rx},${floor + 1},${rz}`] = { coal: 3, ironIngot: 2, cookedMeat: 2 };
+            }
+            if (currentSeasonIndex === 3 && !isHellWorld) applyWinterSnowToChunk(cx, cz);
+        }
+
+        function ensureChunkData(cx, cz) {
+            const key = `${cx},${cz}`;
+            if (generatedChunks.has(key)) return;
+            generateChunkData(cx, cz);
+            generatedChunks.add(key);
+        }
+
+        function rebuildChunk(cx, cz) {
+            const chunkKey = `${cx},${cz}`;
+            if (chunks.has(chunkKey)) {
+                scene.remove(chunks.get(chunkKey));
+                chunks.delete(chunkKey);
+            }
+
+            const startX = cx * CHUNK_SIZE;
+            const startZ = cz * CHUNK_SIZE;
+            const group = new THREE.Group();
+            const visibleBlocks = new Map();
+            const directions = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+
+            for (let x = 0; x < CHUNK_SIZE; x++) {
+                for (let z = 0; z < CHUNK_SIZE; z++) {
+                    const wx = startX + x, wz = startZ + z;
+                    for (let y = 0; y < CHUNK_HEIGHT; y++) {
+                        const bId = getBlock(wx, y, wz);
+                        if (!bId || bId === BLOCKS.AIR.id) continue;
+
+                        const isExposed = directions.some(([dx, dy, dz]) => {
+                            const neighborId = getBlock(wx + dx, y + dy, wz + dz);
+                            if (neighborId === null || neighborId === BLOCKS.AIR.id) return true;
+                            const neighbor = BLOCK_TYPES_BY_ID.get(neighborId);
+                            return !neighbor || !neighbor.solid || neighbor.transparent;
+                        });
+                        if (!isExposed) continue;
+                        if (!visibleBlocks.has(bId)) visibleBlocks.set(bId, []);
+                        visibleBlocks.get(bId).push([wx + 0.5, y + 0.5, wz + 0.5]);
+                    }
+                }
+            }
+
+            const transform = new THREE.Object3D();
+            visibleBlocks.forEach((positions, bId) => {
+                const blockType = BLOCK_TYPES_BY_ID.get(bId);
+                if (!blockType) return;
+                if (bId === BLOCKS.BED.id) {
+                    getBlockMaterial(blockType);
+                    positions.forEach(([x, y, z]) => {
+                        const bed = new THREE.Group();
+                        const addPart = (material, px, py, pz, sx, sy, sz) => {
+                            const part = new THREE.Mesh(cubeGeometry, material);
+                            part.position.set(px, py, pz);
+                            part.scale.set(sx, sy, sz);
+                            bed.add(part);
+                        };
+                        // A wooden frame, quilted mattress, pillow, and raised headboard.
+                        addPart(bedVisualMaterials.wood, x, y - 0.27, z, 0.94, 0.14, 0.94);
+                        addPart(bedVisualMaterials.wood, x - 0.36, y - 0.39, z - 0.34, 0.16, 0.24, 0.16);
+                        addPart(bedVisualMaterials.wood, x + 0.36, y - 0.39, z - 0.34, 0.16, 0.24, 0.16);
+                        addPart(bedVisualMaterials.wood, x - 0.36, y - 0.39, z + 0.34, 0.16, 0.24, 0.16);
+                        addPart(bedVisualMaterials.wood, x + 0.36, y - 0.39, z + 0.34, 0.16, 0.24, 0.16);
+                        addPart(bedVisualMaterials.fabric, x, y - 0.12, z, 0.88, 0.24, 0.88);
+                        addPart(bedVisualMaterials.fabric, x, y + 0.015, z - 0.18, 0.58, 0.07, 0.35);
+                        addPart(bedVisualMaterials.pillow, x, y + 0.035, z - 0.31, 0.48, 0.09, 0.25);
+                        addPart(bedVisualMaterials.wood, x, y + 0.10, z + 0.43, 0.98, 0.78, 0.12);
+                        group.add(bed);
+                    });
+                    return;
+                }
+                const mesh = new THREE.InstancedMesh(cubeGeometry, getBlockMaterial(blockType), positions.length);
+                positions.forEach((position, index) => {
+                    transform.position.set(position[0], position[1], position[2]);
+                    const size = bId === BLOCKS.APPLE_SEEDS.id ? [0.28, 0.18, 0.28] :
+                        bId === BLOCKS.APPLE.id ? [0.38, 0.38, 0.38] :
+                        bId === BLOCKS.SLAB.id ? [1, 0.5, 1] :
+                        bId === BLOCKS.TORCH.id ? [0.16, 0.7, 0.16] :
+                        bId === BLOCKS.DOOR.id ? [0.16, 1, 1] :
+                        bId === BLOCKS.BED.id ? [1, 0.4, 1] : [1, 1, 1];
+                    transform.scale.set(size[0], size[1], size[2]);
+                    transform.updateMatrix();
+                    mesh.setMatrixAt(index, transform.matrix);
+                });
+                mesh.instanceMatrix.needsUpdate = true;
+                group.add(mesh);
+            });
+
+            chunks.set(chunkKey, group);
+            scene.add(group);
+        }
+
+        function updateChunksAroundPlayer(px, pz) {
+            const pcx = Math.floor(px / CHUNK_SIZE);
+            const pcz = Math.floor(pz / CHUNK_SIZE);
+            for (let x = pcx - VIEW_DISTANCE; x <= pcx + VIEW_DISTANCE; x++) {
+                for (let z = pcz - VIEW_DISTANCE; z <= pcz + VIEW_DISTANCE; z++) {
+                    const cKey = `${x},${z}`;
+                    if (!chunks.has(cKey)) {
+                        ensureChunkData(x, z);
+                        rebuildChunk(x, z);
+                        for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+                            const neighborKey = `${x + dx},${z + dz}`;
+                            if (chunks.has(neighborKey)) rebuildChunk(x + dx, z + dz);
+                        }
+                        if (!isHellWorld) {
+                            spawnCowForChunk(x, z);
+                            spawnChickenForChunk(x, z);
+                            spawnFishForChunk(x, z);
+                            spawnVillageForChunk(x, z);
+                            if (nightTime) {
+                                spawnZombieForChunk(x, z);
+                                spawnSkeletonForChunk(x, z);
+                            }
+                        }
+                    }
+                }
+            }
+
+            for (const [key, group] of chunks) {
+                const [cx, cz] = key.split(',').map(Number);
+                if (Math.abs(cx - pcx) > VIEW_DISTANCE || Math.abs(cz - pcz) > VIEW_DISTANCE) {
+                    scene.remove(group);
+                    chunks.delete(key);
+                    for (let i = cowMobs.length - 1; i >= 0; i--) {
+                        if (cowMobs[i].homeChunk === key) {
+                            scene.remove(cowMobs[i].group);
+                            cowMobs.splice(i, 1);
+                        }
+                    }
+                    for (let i = chickenMobs.length - 1; i >= 0; i--) {
+                        if (chickenMobs[i].homeChunk === key) {
+                            scene.remove(chickenMobs[i].group);
+                            chickenMobs.splice(i, 1);
+                        }
+                    }
+                    for (let i = zombieMobs.length - 1; i >= 0; i--) {
+                        if (zombieMobs[i].homeChunk === key) {
+                            scene.remove(zombieMobs[i].group);
+                            zombieMobs.splice(i, 1);
+                        }
+                    }
+                    for (let i = villagerMobs.length - 1; i >= 0; i--) {
+                        if (villagerMobs[i].homeChunk === key) {
+                            scene.remove(villagerMobs[i].group);
+                            villagerMobs.splice(i, 1);
+                        }
+                    }
+                    for (let i = fishMobs.length - 1; i >= 0; i--) {
+                        if (fishMobs[i].homeChunk === key) {
+                            scene.remove(fishMobs[i].group);
+                            fishMobs.splice(i, 1);
+                        }
+                    }
+                }
+            }
+        }
+
+        const cowMobs = [];
+        const cowGeometryCache = new Map();
+        const cowMaterials = {
+            coat: new THREE.MeshLambertMaterial({ color: 0xf4ead8 }),
+            spot: new THREE.MeshLambertMaterial({ color: 0x493126 }),
+            muzzle: new THREE.MeshLambertMaterial({ color: 0xe99a91 }),
+            horn: new THREE.MeshLambertMaterial({ color: 0xe8d7ae }),
+            hoof: new THREE.MeshLambertMaterial({ color: 0x493a34 }),
+            eye: new THREE.MeshLambertMaterial({ color: 0x211b19 }),
+            eyeShine: new THREE.MeshLambertMaterial({ color: 0xffffff })
+        };
+
+        function getCowGeometry(width, height, depth) {
+            const key = `${width},${height},${depth}`;
+            if (!cowGeometryCache.has(key)) {
+                cowGeometryCache.set(key, new THREE.BoxGeometry(width, height, depth));
+            }
+            return cowGeometryCache.get(key);
+        }
+
+        function addCowBox(parent, width, height, depth, x, y, z, material) {
+            const mesh = new THREE.Mesh(getCowGeometry(width, height, depth), material);
+            mesh.position.set(x, y, z);
+            parent.add(mesh);
+            return mesh;
+        }
+
+        function createCow(homeChunk) {
+            const group = new THREE.Group();
+            addCowBox(group, 1.08, 0.82, 1.42, 0, 1.05, 0, cowMaterials.coat);
+
+            // Distinct chocolate-brown patches on both sides and the back.
+            for (const side of [-1, 1]) {
+                addCowBox(group, 0.025, 0.38, 0.48, side * 0.548, 1.15, 0.27, cowMaterials.spot);
+                addCowBox(group, 0.025, 0.24, 0.30, side * 0.548, 0.88, -0.28, cowMaterials.spot);
+            }
+            addCowBox(group, 0.62, 0.44, 0.20, 0, 1.22, 0.64, cowMaterials.spot);
+
+            const head = new THREE.Group();
+            head.position.set(0, 1.12, -0.76);
+            group.add(head);
+            addCowBox(head, 0.62, 0.62, 0.58, 0, 0, -0.08, cowMaterials.coat);
+            addCowBox(head, 0.44, 0.28, 0.20, 0, -0.19, -0.39, cowMaterials.muzzle);
+            for (const side of [-1, 1]) {
+                addCowBox(head, 0.12, 0.20, 0.13, side * 0.22, 0.38, -0.02, cowMaterials.horn);
+                addCowBox(head, 0.22, 0.12, 0.20, side * 0.39, 0.06, -0.04, cowMaterials.coat);
+                addCowBox(head, 0.075, 0.10, 0.035, side * 0.17, 0.10, -0.381, cowMaterials.eye);
+                addCowBox(head, 0.025, 0.03, 0.015, side * 0.17 - 0.015, 0.13, -0.402, cowMaterials.eyeShine);
+                addCowBox(head, 0.045, 0.035, 0.025, side * 0.11, -0.18, -0.497, cowMaterials.spot);
+            }
+
+            const legs = [];
+            for (const x of [-0.34, 0.34]) {
+                for (const z of [-0.48, 0.48]) {
+                    const leg = new THREE.Group();
+                    leg.position.set(x, 0.68, z);
+                    addCowBox(leg, 0.23, 0.62, 0.24, 0, -0.31, 0, cowMaterials.coat);
+                    addCowBox(leg, 0.24, 0.16, 0.25, 0, -0.55, -0.01, cowMaterials.hoof);
+                    group.add(leg);
+                    legs.push(leg);
+                }
+            }
+
+            const tail = new THREE.Group();
+            tail.position.set(0, 1.27, 0.68);
+            addCowBox(tail, 0.10, 0.10, 0.55, 0, -0.10, 0.24, cowMaterials.coat);
+            addCowBox(tail, 0.13, 0.16, 0.13, 0, -0.14, 0.52, cowMaterials.spot);
+            group.add(tail);
+
+            scene.add(group);
+            const angle = Math.random() * Math.PI * 2;
+            const cow = {
+                group, homeChunk, head, legs, tail,
+                direction: new THREE.Vector3(Math.sin(angle), 0, Math.cos(angle)),
+                nextTurn: 0,
+                phase: Math.random() * Math.PI * 2,
+                speed: 0.45 + Math.random() * 0.25,
+                health: 10,
+                fleeUntil: 0,
+                walking: false,
+                milkReadyAt: 0
+            };
+            cowMobs.push(cow);
+            return cow;
+        }
+
+        function spawnCowForChunk(cx, cz) {
+            // A nearby cow is guaranteed at the starting area; distant chunks are less crowded.
+            if ((cx !== 0 || cz !== 0) && pseudoNoise(cx * 73.1 + 8, cz * 51.7 - 3) < 0.72) return;
+
+            let best = null;
+            let bestScore = Infinity;
+            for (let x = 2; x < CHUNK_SIZE - 2; x++) {
+                for (let z = 2; z < CHUNK_SIZE - 2; z++) {
+                    const wx = cx * CHUNK_SIZE + x;
+                    const wz = cz * CHUNK_SIZE + z;
+                    const surface = getNoise(wx, wz);
+                    if (getBlock(wx, surface, wz) !== BLOCKS.GRASS.id || getBlock(wx, surface + 1, wz) !== null) continue;
+                    if (cx === 0 && cz === 0 && Math.hypot(wx + 0.5, wz + 0.5) < 5) continue;
+                    const score = pseudoNoise(wx * 1.37, wz * 2.13);
+                    if (score < bestScore) {
+                        best = { x: wx, z: wz, surface };
+                        bestScore = score;
+                    }
+                }
+            }
+            if (best) {
+                const cow = createCow(`${cx},${cz}`);
+                cow.group.position.set(best.x + 0.5, best.surface + 1, best.z + 0.5);
+            }
+        }
+
+        function updateCowMobs(delta, now) {
+            for (const cow of cowMobs) {
+                const awayX = cow.group.position.x - player.position.x;
+                const awayZ = cow.group.position.z - player.position.z;
+                const playerDistance = Math.hypot(awayX, awayZ);
+                if (playerDistance < 7 && playerDistance > 0.001) {
+                    cow.direction.set(awayX / playerDistance, 0, awayZ / playerDistance);
+                    cow.walking = true;
+                    cow.nextTurn = now + 0.5;
+                } else if (now >= cow.nextTurn) {
+                    const angle = Math.random() * Math.PI * 2;
+                    cow.direction.set(Math.sin(angle), 0, Math.cos(angle));
+                    cow.walking = Math.random() > 0.2;
+                    cow.nextTurn = now + 2 + Math.random() * 3;
+                }
+
+                cow.group.rotation.y = Math.atan2(-cow.direction.x, -cow.direction.z);
+                if (cow.walking) {
+                    const escapeSpeed = playerDistance < 7
+                        ? cow.speed * (cow.fleeUntil > now ? 3.2 : 2.2)
+                        : cow.speed;
+                    const nextX = cow.group.position.x + cow.direction.x * escapeSpeed * delta;
+                    const nextZ = cow.group.position.z + cow.direction.z * escapeSpeed * delta;
+                    const surface = getNoise(Math.floor(nextX), Math.floor(nextZ));
+                    const ground = getBlock(Math.floor(nextX), surface, Math.floor(nextZ));
+                    if (ground === BLOCKS.GRASS.id && Math.abs(surface + 1 - cow.group.position.y) <= 1) {
+                        cow.group.position.x = nextX;
+                        cow.group.position.z = nextZ;
+                        cow.group.position.y = surface + 1;
+                    } else {
+                        cow.nextTurn = 0;
+                    }
+                }
+
+                const stride = cow.walking ? Math.sin(now * 7 + cow.phase) * 0.42 : 0;
+                cow.legs.forEach((leg, index) => {
+                    leg.rotation.x = (index === 0 || index === 3) ? stride : -stride;
+                });
+                cow.tail.rotation.x = Math.sin(now * 2 + cow.phase) * 0.35;
+                cow.head.rotation.x = Math.sin(now * 1.4 + cow.phase) * 0.035;
+            }
+        }
+
+        // Chickens use pixel-art textures and blocky proportions inspired by classic voxel games.
+        const chickenGeometryCache = new Map();
+        const chickenMaterials = {
+            feathers: new THREE.MeshLambertMaterial({ map: createPixelTexture('#f3eee2', '#ded5c4') }),
+            wing: new THREE.MeshLambertMaterial({ map: createPixelTexture('#e8e0d2', '#cfc5b5') }),
+            beak: new THREE.MeshLambertMaterial({ map: createPixelTexture('#e5a52f', '#f5c34e') }),
+            legs: new THREE.MeshLambertMaterial({ map: createPixelTexture('#d98b28', '#efad38') }),
+            wattle: new THREE.MeshLambertMaterial({ map: createPixelTexture('#c93632', '#ed5147') }),
+            eyes: new THREE.MeshLambertMaterial({ color: 0x211b18 })
+        };
+        const chickenMobs = [];
+        const fishMobs = [];
+        const fishMaterials = {
+            body: new THREE.MeshLambertMaterial({ color: 0xff914d }),
+            belly: new THREE.MeshLambertMaterial({ color: 0xffd38a }),
+            fins: new THREE.MeshLambertMaterial({ color: 0xe95748 }),
+            eye: new THREE.MeshLambertMaterial({ color: 0x171717 })
+        };
+
+        function createFish(homeChunk, waterY, x, z, colorVariant = 0) {
+            const group = new THREE.Group();
+            const bodyMaterial = colorVariant ? new THREE.MeshLambertMaterial({ color: 0x64c9d6 }) : fishMaterials.body;
+            const tail = new THREE.Group();
+            const addFishPart = (width, height, depth, px, py, pz, material, parent = group) => {
+                const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), material);
+                mesh.position.set(px, py, pz);
+                parent.add(mesh);
+                return mesh;
+            };
+
+            addFishPart(0.72, 0.40, 0.42, 0, 0, 0, bodyMaterial);
+            addFishPart(0.48, 0.16, 0.30, 0, -0.12, -0.01, fishMaterials.belly);
+            tail.position.set(0, 0, 0.20);
+            group.add(tail);
+            addFishPart(0.06, 0.36, 0.32, 0, 0, 0.20, fishMaterials.fins, tail);
+            addFishPart(0.22, 0.13, 0.24, 0, 0.24, -0.02, fishMaterials.fins);
+            addFishPart(0.10, 0.17, 0.25, 0.33, -0.02, 0.04, fishMaterials.fins);
+            addFishPart(0.10, 0.17, 0.25, -0.33, -0.02, 0.04, fishMaterials.fins);
+            addFishPart(0.07, 0.07, 0.035, 0.22, 0.06, -0.216, fishMaterials.eye);
+            addFishPart(0.07, 0.07, 0.035, -0.22, 0.06, -0.216, fishMaterials.eye);
+
+            group.position.set(x + 0.5, waterY + 0.5, z + 0.5);
+            scene.add(group);
+            const fish = {
+                group, homeChunk, waterY, tail,
+                direction: Math.random() < 0.5 ? -1 : 1,
+                nextTurn: 0,
+                phase: Math.random() * Math.PI * 2,
+                speed: 0.3 + Math.random() * 0.18
+            };
+            fishMobs.push(fish);
+            return fish;
+        }
+
+        function spawnFishForChunk(cx, cz) {
+            const candidates = [];
+            for (let x = 2; x < CHUNK_SIZE - 2; x++) {
+                for (let z = 2; z < CHUNK_SIZE - 2; z++) {
+                    const wx = cx * CHUNK_SIZE + x;
+                    const wz = cz * CHUNK_SIZE + z;
+                    for (let y = 2; y <= 9; y++) {
+                        if (getBlock(wx, y, wz) !== BLOCKS.WATER.id) continue;
+                        let waterNeighbors = 0;
+                        for (let dx = -1; dx <= 1; dx++) {
+                            for (let dz = -1; dz <= 1; dz++) {
+                                if (getBlock(wx + dx, y, wz + dz) === BLOCKS.WATER.id) waterNeighbors++;
+                            }
+                        }
+                        // A pond must have enough room for a fish; this skips tiny wells and single water blocks.
+                        if (waterNeighbors >= 5) candidates.push({ x: wx, y, z: wz, score: pseudoNoise(wx * 6.13, wz * 3.71 + y) });
+                    }
+                }
+            }
+            candidates.sort((a, b) => a.score - b.score);
+            const chosen = [];
+            for (const spot of candidates) {
+                if (chosen.every(other => Math.hypot(spot.x - other.x, spot.z - other.z) >= 4)) chosen.push(spot);
+                if (chosen.length >= 2) break;
+            }
+            chosen.forEach((spot, index) => {
+                createFish(`${cx},${cz}`, spot.y, spot.x, spot.z, index % 2);
+            });
+        }
+
+        function updateFishMobs(delta, now) {
+            for (const fish of fishMobs) {
+                if (now >= fish.nextTurn) {
+                    fish.direction = Math.random() < 0.5 ? -1 : 1;
+                    fish.nextTurn = now + 1.5 + Math.random() * 3;
+                }
+                const nextX = fish.group.position.x + fish.direction * fish.speed * delta;
+                const bx = Math.floor(nextX), bz = Math.floor(fish.group.position.z);
+                if (getBlock(bx, fish.waterY, bz) === BLOCKS.WATER.id) {
+                    fish.group.position.x = nextX;
+                } else {
+                    fish.direction *= -1;
+                    fish.nextTurn = now + 0.5;
+                }
+                fish.group.rotation.y = fish.direction > 0 ? -Math.PI / 2 : Math.PI / 2;
+                fish.group.position.y = fish.waterY + 0.5 + Math.sin(now * 2.5 + fish.phase) * 0.035;
+                fish.tail.rotation.y = Math.sin(now * 9 + fish.phase) * 0.5;
+            }
+        }
+
+        function getChickenGeometry(width, height, depth) {
+            const key = `${width},${height},${depth}`;
+            if (!chickenGeometryCache.has(key)) {
+                chickenGeometryCache.set(key, new THREE.BoxGeometry(width, height, depth));
+            }
+            return chickenGeometryCache.get(key);
+        }
+
+        function addChickenBox(parent, width, height, depth, x, y, z, material) {
+            const mesh = new THREE.Mesh(getChickenGeometry(width, height, depth), material);
+            mesh.position.set(x, y, z);
+            parent.add(mesh);
+            return mesh;
+        }
+
+        function createChicken(homeChunk) {
+            const group = new THREE.Group();
+            addChickenBox(group, 0.62, 0.66, 0.78, 0, 0.78, 0.05, chickenMaterials.feathers);
+
+            const head = new THREE.Group();
+            head.position.set(0, 1.14, -0.28);
+            group.add(head);
+            addChickenBox(head, 0.44, 0.42, 0.44, 0, 0, -0.06, chickenMaterials.feathers);
+            addChickenBox(head, 0.20, 0.14, 0.24, 0, -0.10, -0.37, chickenMaterials.beak);
+            addChickenBox(head, 0.12, 0.20, 0.12, 0, 0.29, -0.02, chickenMaterials.wattle);
+            for (const side of [-1, 1]) {
+                addChickenBox(head, 0.055, 0.07, 0.025, side * 0.13, 0.04, -0.285, chickenMaterials.eyes);
+            }
+
+            const wings = [];
+            for (const side of [-1, 1]) {
+                wings.push(addChickenBox(group, 0.10, 0.35, 0.48, side * 0.34, 0.82, 0.04, chickenMaterials.wing));
+            }
+
+            const legs = [];
+            for (const side of [-1, 1]) {
+                const leg = new THREE.Group();
+                leg.position.set(side * 0.16, 0.48, 0.02);
+                addChickenBox(leg, 0.10, 0.42, 0.10, 0, -0.19, 0, chickenMaterials.legs);
+                addChickenBox(leg, 0.22, 0.08, 0.19, 0, -0.38, -0.04, chickenMaterials.legs);
+                group.add(leg);
+                legs.push(leg);
+            }
+
+            scene.add(group);
+            const angle = Math.random() * Math.PI * 2;
+            const chicken = {
+                group, homeChunk, head, legs, wings,
+                direction: new THREE.Vector3(Math.sin(angle), 0, Math.cos(angle)),
+                nextTurn: 0,
+                phase: Math.random() * Math.PI * 2,
+                speed: 0.55 + Math.random() * 0.2,
+                walking: false,
+                peckUntil: 0,
+                tamed: false,
+                nextEggAt: Infinity
+            };
+            chickenMobs.push(chicken);
+            return chicken;
+        }
+
+        function spawnChickenForChunk(cx, cz) {
+            if (pseudoNoise(cx * 61.3 + 2, cz * 39.7 - 6) < 0.55) return;
+            let best = null;
+            let bestScore = Infinity;
+            for (let x = 2; x < CHUNK_SIZE - 2; x++) {
+                for (let z = 2; z < CHUNK_SIZE - 2; z++) {
+                    const wx = cx * CHUNK_SIZE + x;
+                    const wz = cz * CHUNK_SIZE + z;
+                    const surface = getNoise(wx, wz);
+                    if (getBlock(wx, surface, wz) !== BLOCKS.GRASS.id || getBlock(wx, surface + 1, wz) !== null) continue;
+                    if (cx === 0 && cz === 0 && Math.hypot(wx + 0.5, wz + 0.5) < 3) continue;
+                    const score = pseudoNoise(wx * 2.71 + 11, wz * 1.83 - 4);
+                    if (score < bestScore) {
+                        best = { x: wx, z: wz, surface };
+                        bestScore = score;
+                    }
+                }
+            }
+            if (best) {
+                const chicken = createChicken(`${cx},${cz}`);
+                chicken.group.position.set(best.x + 0.5, best.surface + 1, best.z + 0.5);
+            }
+        }
+
+        function updateChickenMobs(delta, now) {
+            for (const chicken of chickenMobs) {
+                if (chicken.tamed && performance.now() >= chicken.nextEggAt) {
+                    addResource('eggs', 1);
+                    chicken.nextEggAt = performance.now() + 45000;
+                    showNotification('A tamed chicken laid an egg');
+                }
+                if (now >= chicken.nextTurn) {
+                    const angle = Math.random() * Math.PI * 2;
+                    chicken.direction.set(Math.sin(angle), 0, Math.cos(angle));
+                    chicken.walking = Math.random() > 0.25;
+                    chicken.nextTurn = now + 2 + Math.random() * 3;
+                    chicken.peckUntil = now + 0.25;
+                }
+                chicken.group.rotation.y = Math.atan2(-chicken.direction.x, -chicken.direction.z);
+                if (chicken.walking) {
+                    const nextX = chicken.group.position.x + chicken.direction.x * chicken.speed * delta;
+                    const nextZ = chicken.group.position.z + chicken.direction.z * chicken.speed * delta;
+                    const surface = getNoise(Math.floor(nextX), Math.floor(nextZ));
+                    if (getBlock(Math.floor(nextX), surface, Math.floor(nextZ)) === BLOCKS.GRASS.id &&
+                        Math.abs(surface + 1 - chicken.group.position.y) <= 1) {
+                        chicken.group.position.set(nextX, surface + 1, nextZ);
+                    } else {
+                        chicken.nextTurn = 0;
+                    }
+                }
+                const stride = chicken.walking ? Math.sin(now * 9 + chicken.phase) * 0.55 : 0;
+                chicken.legs[0].rotation.x = stride;
+                chicken.legs[1].rotation.x = -stride;
+                chicken.wings[0].rotation.z = chicken.walking ? Math.sin(now * 9 + chicken.phase) * 0.12 : 0;
+                chicken.wings[1].rotation.z = -chicken.wings[0].rotation.z;
+                chicken.head.rotation.x = now < chicken.peckUntil ? Math.sin((now - chicken.peckUntil) * 12) * 0.45 : Math.sin(now * 1.5 + chicken.phase) * 0.035;
+            }
+        }
+
+        function interactWithAnimal() {
+            if (!gameStarted) return;
+            let nearestCow = null, cowDistance = 3;
+            for (const cow of cowMobs) {
+                const distance = Math.hypot(cow.group.position.x - player.position.x, cow.group.position.z - player.position.z);
+                if (distance < cowDistance) { nearestCow = cow; cowDistance = distance; }
+            }
+            let nearestChicken = null, chickenDistance = 3;
+            for (const chicken of chickenMobs) {
+                const distance = Math.hypot(chicken.group.position.x - player.position.x, chicken.group.position.z - player.position.z);
+                if (distance < chickenDistance) { nearestChicken = chicken; chickenDistance = distance; }
+            }
+            if (nearestCow && cowDistance <= chickenDistance) {
+                const now = performance.now();
+                if (now < nearestCow.milkReadyAt) {
+                    showNotification('This cow needs a little time before it can be milked again');
+                    return;
+                }
+                addResource('milk', 1);
+                nearestCow.milkReadyAt = now + 8000;
+                showNotification('Cow milk collected');
+                return;
+            }
+            if (nearestChicken) {
+                if (!nearestChicken.tamed) {
+                    if (resources.seeds < 1) { showNotification('You need 1 seed to tame a chicken'); return; }
+                    resources.seeds--;
+                    nearestChicken.tamed = true;
+                    nearestChicken.nextEggAt = performance.now() + 45000;
+                    renderWorkshop();
+                    showNotification('Chicken tamed! It will lay eggs over time');
+                } else {
+                    showNotification('Your tamed chicken will lay another egg soon');
+                }
+                return;
+            }
+            showNotification('Move closer to a cow or chicken');
+        }
+
+        function sleepInBed() {
+            if (!gameStarted) return;
+            if (!nightTime) { showNotification('You can only sleep at night'); return; }
+
+            const feetY = player.position.y - player.height;
+            const px = Math.floor(player.position.x), py = Math.floor(feetY), pz = Math.floor(player.position.z);
+            let nearbyBed = false;
+            for (let x = px - 3; x <= px + 3 && !nearbyBed; x++) {
+                for (let y = py - 2; y <= py + 2 && !nearbyBed; y++) {
+                    for (let z = pz - 3; z <= pz + 3; z++) {
+                        if (getBlock(x, y, z) === BLOCKS.BED.id &&
+                            Math.hypot(x + 0.5 - player.position.x, z + 0.5 - player.position.z) <= 2.5 &&
+                            Math.abs(y + 1 - feetY) <= 2) {
+                            nearbyBed = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (!nearbyBed) { showNotification('Move close to a bed to sleep'); return; }
+
+            cycleProgress = 7 / 24;
+            showNotification('Good night! You slept until morning');
+        }
+
+        const zombieMobs = [];
+
+        function createPixelTexture(baseColor, accentColor) {
+            const canvas = document.createElement('canvas');
+            canvas.width = canvas.height = 16;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = baseColor;
+            ctx.fillRect(0, 0, 16, 16);
+            for (let y = 0; y < 16; y++) {
+                for (let x = 0; x < 16; x++) {
+                    if ((x * 7 + y * 11) % 9 === 0) {
+                        ctx.fillStyle = accentColor;
+                        ctx.fillRect(x, y, 1, 1);
+                    }
+                }
+            }
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.magFilter = THREE.NearestFilter;
+            texture.minFilter = THREE.NearestFilter;
+            return texture;
+        }
+
+        const villagerMobs = [];
+        const villagerGeometryCache = new Map();
+        const villagerMaterials = {
+            skin: new THREE.MeshLambertMaterial({ map: createPixelTexture('#bd8965', '#d2a17b') }),
+            robe: [
+                new THREE.MeshLambertMaterial({ map: createPixelTexture('#76533b', '#8a6347') }),
+                new THREE.MeshLambertMaterial({ map: createPixelTexture('#416d36', '#568446') }),
+                new THREE.MeshLambertMaterial({ map: createPixelTexture('#73528c', '#8d6ba6') })
+            ],
+            apron: new THREE.MeshLambertMaterial({ map: createPixelTexture('#d2c7a4', '#e4d9b5') }),
+            hat: [
+                new THREE.MeshLambertMaterial({ map: createPixelTexture('#b99a52', '#d5bb70') }),
+                new THREE.MeshLambertMaterial({ map: createPixelTexture('#58412e', '#76583d') }),
+                new THREE.MeshLambertMaterial({ map: createPixelTexture('#5f7541', '#82934f') })
+            ],
+            belt: new THREE.MeshLambertMaterial({ map: createPixelTexture('#49372b', '#674b37') }),
+            skinShadow: new THREE.MeshLambertMaterial({ color: 0xa96f52 }),
+            nose: new THREE.MeshLambertMaterial({ color: 0xa96f52 }),
+            eyes: new THREE.MeshLambertMaterial({ color: 0x251b18 }),
+            brow: new THREE.MeshLambertMaterial({ color: 0x38251d }),
+            shoes: new THREE.MeshLambertMaterial({ color: 0x493a30 })
+        };
+
+        function getVillagerGeometry(width, height, depth) {
+            const key = `${width},${height},${depth}`;
+            if (!villagerGeometryCache.has(key)) {
+                villagerGeometryCache.set(key, new THREE.BoxGeometry(width, height, depth));
+            }
+            return villagerGeometryCache.get(key);
+        }
+
+        function addVillagerBox(parent, width, height, depth, x, y, z, material) {
+            const mesh = new THREE.Mesh(getVillagerGeometry(width, height, depth), material);
+            mesh.position.set(x, y, z);
+            parent.add(mesh);
+            return mesh;
+        }
+
+        function createVillager(homeChunk, groundY, x, z, style) {
+            const group = new THREE.Group();
+            const head = new THREE.Group();
+            head.position.set(0, 2.05, -0.02);
+            group.add(head);
+            addVillagerBox(head, 0.72, 0.76, 0.66, 0, 0, 0, villagerMaterials.skin);
+            addVillagerBox(head, 0.16, 0.27, 0.22, 0, -0.16, -0.40, villagerMaterials.nose);
+            for (const side of [-1, 1]) {
+                addVillagerBox(head, 0.09, 0.07, 0.035, side * 0.16, 0.10, -0.346, villagerMaterials.eyes);
+                addVillagerBox(head, 0.21, 0.09, 0.05, side * 0.12, 0.21, -0.35, villagerMaterials.brow);
+            }
+
+            // Distinct pixel-textured profession caps and the classic long villager nose.
+            const profession = style % villagerMaterials.hat.length;
+            addVillagerBox(head, 0.88, 0.12, 0.78, 0, 0.39, 0, villagerMaterials.hat[profession]);
+            addVillagerBox(head, profession === 2 ? 0.54 : 0.62, profession === 2 ? 0.34 : 0.24, 0.56,
+                0, profession === 2 ? 0.60 : 0.55, 0, villagerMaterials.hat[profession]);
+
+            const robe = villagerMaterials.robe[style % villagerMaterials.robe.length];
+            addVillagerBox(group, 0.76, 1.08, 0.48, 0, 1.28, 0, robe);
+            addVillagerBox(group, 0.26, 0.68, 0.52, 0, 1.35, -0.04, villagerMaterials.apron);
+            addVillagerBox(group, 0.80, 0.12, 0.52, 0, 0.82, 0, robe);
+            addVillagerBox(group, 0.62, 0.12, 0.54, 0, 0.91, -0.01, villagerMaterials.belt);
+            addVillagerBox(group, 0.62, 0.20, 0.20, 0, 1.57, -0.31, robe);
+            addVillagerBox(group, 0.18, 0.15, 0.10, 0, 1.57, -0.43, villagerMaterials.skinShadow);
+            for (const side of [-1, 1]) {
+                addVillagerBox(group, 0.10, 0.10, 0.035, side * 0.09, 1.35, -0.31, villagerMaterials.belt);
+            }
+
+            const arms = [];
+            for (const side of [-1, 1]) {
+                const arm = new THREE.Group();
+                arm.position.set(side * 0.49, 1.62, -0.08);
+                addVillagerBox(arm, 0.26, 0.78, 0.30, -side * 0.08, -0.32, -0.10, robe);
+                group.add(arm);
+                arms.push(arm);
+            }
+
+            const legs = [];
+            for (const side of [-1, 1]) {
+                const leg = new THREE.Group();
+                leg.position.set(side * 0.20, 0.48, 0);
+                addVillagerBox(leg, 0.30, 0.82, 0.34, 0, -0.02, 0, robe);
+                addVillagerBox(leg, 0.32, 0.12, 0.36, 0, -0.43, -0.02, villagerMaterials.shoes);
+                group.add(leg);
+                legs.push(leg);
+            }
+
+            group.position.set(x, groundY + 1, z);
+            scene.add(group);
+            const villager = {
+                group, homeChunk, groundY, homeX: x, homeZ: z, head, arms, legs,
+                direction: new THREE.Vector3(1, 0, 0), nextTurn: 0,
+                phase: Math.random() * Math.PI * 2,
+                walking: false, speed: 0.35 + Math.random() * 0.12
+            };
+            villagerMobs.push(villager);
+            return villager;
+        }
+
+        function spawnVillageForChunk(cx, cz) {
+            const village = villageData.get(`${cx},${cz}`);
+            if (!village) return;
+            const { startX, startZ, groundY } = village;
+            const villagers = [
+                [6.5, 11.5, 0], [8.5, 11.5, 1], [10.5, 11.5, 2],
+                [7.5, 11.5, 1], [9.5, 11.5, 0]
+            ];
+            villagers.forEach(([x, z, style]) => {
+                createVillager(`${cx},${cz}`, groundY, startX + x, startZ + z, style);
+            });
+        }
+
+        function updateVillagerMobs(delta, now) {
+            for (const villager of villagerMobs) {
+                let threat = null;
+                let threatDistance = 6;
+                for (const zombie of zombieMobs) {
+                    const dx = villager.group.position.x - zombie.group.position.x;
+                    const dz = villager.group.position.z - zombie.group.position.z;
+                    const distance = Math.hypot(dx, dz);
+                    if (distance < threatDistance) {
+                        threat = { dx, dz, distance };
+                        threatDistance = distance;
+                    }
+                }
+                if (threat && threat.distance > 0.001) {
+                    villager.direction.set(threat.dx / threat.distance, 0, threat.dz / threat.distance);
+                    villager.walking = true;
+                    villager.nextTurn = now + 0.5;
+                } else if (now >= villager.nextTurn) {
+                    const angle = Math.random() * Math.PI * 2;
+                    villager.direction.set(Math.sin(angle), 0, Math.cos(angle));
+                    villager.walking = Math.random() > 0.35;
+                    villager.nextTurn = now + 2 + Math.random() * 3;
+                }
+
+                if (villager.walking) {
+                    const nextX = villager.group.position.x + villager.direction.x * villager.speed * delta;
+                    const nextZ = villager.group.position.z + villager.direction.z * villager.speed * delta;
+                    const bx = Math.floor(nextX), bz = Math.floor(nextZ);
+                    const floor = BLOCK_TYPES_BY_ID.get(getBlock(bx, villager.groundY, bz));
+                    const open = getBlock(bx, villager.groundY + 1, bz) === null &&
+                        getBlock(bx, villager.groundY + 2, bz) === null;
+                    const inPlaza = nextX >= villager.homeX - 2.5 && nextX <= villager.homeX + 2.5 &&
+                        nextZ >= villager.homeZ - 2.5 && nextZ <= villager.homeZ + 2.5;
+                    if (inPlaza && floor && floor.solid && open) {
+                        villager.group.position.x = nextX;
+                        villager.group.position.z = nextZ;
+                    } else {
+                        villager.nextTurn = 0;
+                    }
+                }
+
+                villager.group.rotation.y = Math.atan2(-villager.direction.x, -villager.direction.z);
+                const stride = villager.walking ? Math.sin(now * 6 + villager.phase) * 0.25 : 0;
+                villager.legs[0].rotation.x = stride;
+                villager.legs[1].rotation.x = -stride;
+                villager.arms[0].rotation.x = -0.22 - stride * 0.25;
+                villager.arms[1].rotation.x = -0.22 + stride * 0.25;
+                villager.head.rotation.y = Math.sin(now * 1.1 + villager.phase) * 0.08;
+            }
+        }
+
+        const zombieMaterials = {
+            skin: new THREE.MeshLambertMaterial({ map: createPixelTexture('#477d35', '#548d3c') }),
+            shirt: new THREE.MeshLambertMaterial({ map: createPixelTexture('#287b86', '#328c91') }),
+            pants: new THREE.MeshLambertMaterial({ map: createPixelTexture('#343d91', '#414da5') }),
+            eyes: new THREE.MeshLambertMaterial({ color: 0x251d18 }),
+            mouth: new THREE.MeshLambertMaterial({ color: 0x30221c })
+        };
+
+        function createZombie(homeChunk, isBoss = false) {
+            const group = new THREE.Group();
+            const head = new THREE.Group();
+            head.position.set(0, 2.12, 0);
+            group.add(head);
+            addCowBox(head, 0.72, 0.72, 0.72, 0, 0, 0, zombieMaterials.skin);
+            // The face is on the zombie's forward (-Z) side.
+            for (const side of [-1, 1]) {
+                addCowBox(head, 0.12, 0.10, 0.035, side * 0.17, 0.08, -0.378, zombieMaterials.eyes);
+            }
+            addCowBox(head, 0.25, 0.07, 0.035, 0, -0.17, -0.378, zombieMaterials.mouth);
+
+            addCowBox(group, 0.78, 1.02, 0.44, 0, 1.34, 0, zombieMaterials.shirt);
+            const arms = [];
+            for (const side of [-1, 1]) {
+                const arm = new THREE.Group();
+                arm.position.set(side * 0.52, 1.72, -0.05);
+                addCowBox(arm, 0.28, 0.92, 0.30, 0, -0.40, 0, zombieMaterials.shirt);
+                arm.rotation.x = -0.85;
+                group.add(arm);
+                arms.push(arm);
+            }
+
+            const legs = [];
+            for (const side of [-1, 1]) {
+                const leg = new THREE.Group();
+                leg.position.set(side * 0.20, 0.83, 0);
+                addCowBox(leg, 0.34, 0.82, 0.38, 0, -0.41, 0, zombieMaterials.pants);
+                group.add(leg);
+                legs.push(leg);
+            }
+
+            if (isBoss) group.scale.setScalar(1.65);
+            scene.add(group);
+            const zombie = {
+                group, homeChunk, head, arms, legs, isBoss, health: isBoss ? 100 : 20,
+                speed: isBoss ? 0.58 : 0.72 + Math.random() * 0.12,
+                attackCooldown: 0,
+                phase: Math.random() * Math.PI * 2
+            };
+            zombieMobs.push(zombie);
+            return zombie;
+        }
+
+        function spawnZombieForChunk(cx, cz) {
+            if ((cx !== 0 || cz !== 0) && pseudoNoise(cx * 31.7 + 9, cz * 47.3 - 5) < 0.78) return;
+
+            let best = null;
+            let bestScore = Infinity;
+            for (let x = 2; x < CHUNK_SIZE - 2; x++) {
+                for (let z = 2; z < CHUNK_SIZE - 2; z++) {
+                    const wx = cx * CHUNK_SIZE + x;
+                    const wz = cz * CHUNK_SIZE + z;
+                    const surface = getNoise(wx, wz);
+                    if (getBlock(wx, surface, wz) !== BLOCKS.GRASS.id || getBlock(wx, surface + 1, wz) !== null) continue;
+                    if (cx === 0 && cz === 0 && Math.hypot(wx + 0.5, wz + 0.5) < 9) continue;
+                    const score = pseudoNoise(wx * 3.17 + 4, wz * 2.41 - 7);
+                    if (score < bestScore) {
+                        best = { x: wx, z: wz, surface };
+                        bestScore = score;
+                    }
+                }
+            }
+            if (best) {
+                const zombie = createZombie(`${cx},${cz}`);
+                zombie.group.position.set(best.x + 0.5, best.surface + 1, best.z + 0.5);
+            }
+        }
+
+        const crossbowBolts = [];
+        const boltMaterial = new THREE.MeshLambertMaterial({ color: 0x4b392b });
+
+        function createSkeleton(homeChunk) {
+            const group = new THREE.Group();
+            const head = new THREE.Group();
+            head.position.set(0, 2.12, 0);
+            group.add(head);
+            addCowBox(head, 0.68, 0.72, 0.68, 0, 0, 0, new THREE.MeshLambertMaterial({ color: 0xd8d0bd }));
+            const dark = new THREE.MeshLambertMaterial({ color: 0x302a27 });
+            for (const side of [-1, 1]) addCowBox(head, 0.13, 0.09, 0.04, side * 0.16, 0.08, -0.36, dark);
+            addCowBox(group, 0.62, 1.02, 0.36, 0, 1.34, 0, new THREE.MeshLambertMaterial({ color: 0x817968 }));
+            const arms = [], legs = [];
+            for (const side of [-1, 1]) {
+                const arm = new THREE.Group(); arm.position.set(side * 0.45, 1.65, -0.08);
+                addCowBox(arm, 0.20, 0.82, 0.22, 0, -0.34, 0, new THREE.MeshLambertMaterial({ color: 0xd8d0bd }));
+                arm.rotation.x = -0.5; group.add(arm); arms.push(arm);
+                const leg = new THREE.Group(); leg.position.set(side * 0.18, 0.82, 0);
+                addCowBox(leg, 0.24, 0.82, 0.26, 0, -0.4, 0, new THREE.MeshLambertMaterial({ color: 0x6b6257 }));
+                group.add(leg); legs.push(leg);
+            }
+            // A chunky crossbow silhouette held across the skeleton's chest.
+            addCowBox(group, 0.78, 0.14, 0.16, 0, 1.55, -0.38, new THREE.MeshLambertMaterial({ color: 0x684326 }));
+            addCowBox(group, 0.12, 0.48, 0.14, 0, 1.55, -0.40, new THREE.MeshLambertMaterial({ color: 0x3e3025 }));
+            scene.add(group);
+            const skeleton = { group, homeChunk, head, arms, legs, isSkeleton: true, isBoss: false, health: 18, attackCooldown: 1.5, phase: Math.random() * Math.PI * 2 };
+            zombieMobs.push(skeleton);
+            return skeleton;
+        }
+
+        function spawnSkeletonForChunk(cx, cz) {
+            if ((cx === 0 && cz === 0) || pseudoNoise(cx * 43.7 + 5, cz * 27.9 - 4) < 0.72) return;
+            for (let x = 3; x < CHUNK_SIZE - 3; x++) for (let z = 3; z < CHUNK_SIZE - 3; z++) {
+                const wx = cx * CHUNK_SIZE + x, wz = cz * CHUNK_SIZE + z;
+                const surface = getNoise(wx, wz);
+                if (getBlock(wx, surface, wz) !== BLOCKS.GRASS.id || getBlock(wx, surface + 1, wz) !== null) continue;
+                if (pseudoNoise(wx * 2.91, wz * 1.73) < 0.92) continue;
+                const skeleton = createSkeleton(`${cx},${cz}`);
+                skeleton.group.position.set(wx + 0.5, surface + 1, wz + 0.5);
+                return;
+            }
+        }
+
+        function updateCrossbowBolts(delta) {
+            for (let i = crossbowBolts.length - 1; i >= 0; i--) {
+                const bolt = crossbowBolts[i];
+                bolt.mesh.position.addScaledVector(bolt.velocity, delta);
+                bolt.life -= delta;
+                const feetY = player.position.y - player.height;
+                if (bolt.mesh.position.distanceTo(player.position.clone().add(new THREE.Vector3(0, -0.7, 0))) < 0.65 &&
+                    bolt.mesh.position.y >= feetY - 0.2 && bolt.mesh.position.y <= player.position.y) {
+                    if (gameMode !== 'creative') {
+                        player.health = Math.max(0, player.health - 3);
+                        document.getElementById('health-display').innerText = `Health: ${player.health} / 20`;
+                        showNotification('Crossbow bolt hit you!');
+                        if (player.health === 0) {
+                            player.health = 20;
+                            player.position.set(0, isHellWorld ? hellTerrainHeight(0, 0) + 1 + player.height : getNoise(0, 0) + 3, 0);
+                            player.velocity.set(0, 0, 0);
+                            document.getElementById('health-display').innerText = 'Health: 20 / 20';
+                            showNotification('You were defeated — respawned');
+                        }
+                    }
+                    bolt.life = 0;
+                }
+                if (bolt.life <= 0) {
+                    scene.remove(bolt.mesh);
+                    crossbowBolts.splice(i, 1);
+                }
+            }
+        }
+
+        function spawnHellBoss() {
+            if (!isHellWorld || bossDefeated || zombieMobs.some(zombie => zombie.isBoss)) return;
+            const boss = createZombie('0,0', true);
+            boss.group.position.set(8.5, hellTerrainHeight(8, 4) + 1, 4.5);
+        }
+
+        function updateZombieMobs(delta, now) {
+            updateCrossbowBolts(delta);
+            for (const zombie of zombieMobs) {
+                const dx = player.position.x - zombie.group.position.x;
+                if (zombie.isSkeleton) {
+                    const distance = Math.hypot(dx, player.position.z - zombie.group.position.z);
+                    zombie.attackCooldown = Math.max(0, zombie.attackCooldown - delta);
+                    if (distance < 16 && distance > 0.001) {
+                        zombie.group.rotation.y = Math.atan2(-dx, -(player.position.z - zombie.group.position.z));
+                        if (distance > 4 && zombie.attackCooldown === 0) {
+                            const origin = zombie.group.position.clone().add(new THREE.Vector3(0, 1.65, 0));
+                            const aim = player.position.clone().add(new THREE.Vector3(0, -0.65, 0));
+                            const velocity = aim.sub(origin).normalize().multiplyScalar(11);
+                            const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.10, 0.72), boltMaterial);
+                            mesh.position.copy(origin);
+                            mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), velocity.clone().normalize());
+                            scene.add(mesh);
+                            crossbowBolts.push({ mesh, velocity, life: 3 });
+                            zombie.attackCooldown = 2.2;
+                        }
+                    }
+                    zombie.arms[0].rotation.x = -0.5 + Math.sin(now * 3 + zombie.phase) * 0.05;
+                    zombie.arms[1].rotation.x = -0.5 - Math.sin(now * 3 + zombie.phase) * 0.05;
+                    continue;
+                }
+                const dz = player.position.z - zombie.group.position.z;
+                const distance = Math.hypot(dx, dz);
+                zombie.attackCooldown = Math.max(0, zombie.attackCooldown - delta);
+
+                if (distance > 0.001 && distance < 18) {
+                    const directionX = dx / distance;
+                    const directionZ = dz / distance;
+                    zombie.group.rotation.y = Math.atan2(-directionX, -directionZ);
+                    if (distance > 1.35) {
+                        const nextX = zombie.group.position.x + directionX * zombie.speed * delta;
+                        const nextZ = zombie.group.position.z + directionZ * zombie.speed * delta;
+                        const nextBlockX = Math.floor(nextX), nextBlockZ = Math.floor(nextZ);
+                        const surface = isHellWorld ? hellTerrainHeight(nextBlockX, nextBlockZ) : getNoise(nextBlockX, nextBlockZ);
+                        const expectedGround = isHellWorld ? BLOCKS.NETHERRACK.id : BLOCKS.GRASS.id;
+                        if (getBlock(nextBlockX, surface, nextBlockZ) === expectedGround &&
+                            Math.abs(surface + 1 - zombie.group.position.y) <= 1) {
+                            zombie.group.position.set(nextX, surface + 1, nextZ);
+                        }
+                    } else if (gameMode !== 'creative' && Math.abs((player.position.y - player.height) - zombie.group.position.y) < 2 && zombie.attackCooldown === 0) {
+                        const incomingDamage = Math.max(1, (zombie.isBoss ? 5 : 2) - Math.floor(armorPoints / 5));
+                        player.health = Math.max(0, player.health - incomingDamage);
+                        if (armorPoints > 0) armorPoints = Math.max(0, armorPoints - 1);
+                        zombie.attackCooldown = 1.25;
+                        document.getElementById('health-display').innerText = `Health: ${player.health} / 20`;
+                        playSoundEffect(110);
+                        showNotification(zombie.isBoss ? 'The Crimson Brute hit you!' : 'Zombie hit you!');
+                        if (player.health === 0) {
+                            player.health = 20;
+                            player.position.set(0, isHellWorld ? hellTerrainHeight(0, 0) + 1 + player.height : getNoise(0, 0) + 3, 0);
+                            player.velocity.set(0, 0, 0);
+                            document.getElementById('health-display').innerText = 'Health: 20 / 20';
+                            showNotification('You were defeated — respawned');
+                        }
+                    }
+                }
+
+                const stride = distance > 1.35 && distance < 18 ? Math.sin(now * 6 + zombie.phase) * 0.45 : 0;
+                zombie.legs[0].rotation.x = stride;
+                zombie.legs[1].rotation.x = -stride;
+                zombie.arms[0].rotation.x = -0.85 + Math.sin(now * 6 + zombie.phase) * 0.08;
+                zombie.arms[1].rotation.x = -0.85 - Math.sin(now * 6 + zombie.phase) * 0.08;
+                zombie.head.rotation.y = Math.sin(now * 1.2 + zombie.phase) * 0.04;
+            }
+        }
+
+        const player = {
+            position: new THREE.Vector3(0, 35, 0),
+            velocity: new THREE.Vector3(0, 0, 0),
+            height: 1.8,
+            radius: 0.3,
+            speed: 6.0,
+            jumpSpeed: 8.0,
+            health: 20,
+            hunger: 20,
+            isGrounded: false
+        };
+        let appleCount = 0;
+        let bossDefeated = false;
+
+        let activePortal = null;
+        const portals = [];
+        let mountainPortal = null;
+        let portalCooldownUntil = 0;
+        const portalFrameMaterial = new THREE.MeshLambertMaterial({ color: 0x35204a, emissive: 0x7b16c9, emissiveIntensity: 0.65 });
+        const portalGlowMaterial = new THREE.MeshBasicMaterial({
+            color: 0xd42fff, transparent: true, opacity: 0.96, side: THREE.DoubleSide,
+            depthWrite: false
+        });
+
+        function findMountainPortal() {
+            let best = { x: 0, z: 0, y: -Infinity };
+            for (let x = -64; x <= 64; x++) {
+                for (let z = -64; z <= 64; z++) {
+                    const height = getNoise(x, z);
+                    const score = height - Math.hypot(x, z) * 0.015;
+                    if (score > best.y) best = { x, z, y: height, score };
+                }
+            }
+            return best;
+        }
+
+        function prepareSpawnPortalSite() {
+            const startX = -2, endX = 2, startZ = 3, endZ = 6;
+            let floorY = 1;
+            for (let x = startX; x <= endX; x++) {
+                for (let z = startZ; z <= endZ; z++) {
+                    floorY = Math.max(floorY, getNoise(x, z) + 1);
+                }
+            }
+
+            // Build a level landing and clear the portal's full height so terrain cannot cover it.
+            for (let x = startX; x <= endX; x++) {
+                for (let z = startZ; z <= endZ; z++) {
+                    worldData.set(`${x},${floorY - 1},${z}`, BLOCKS.STONE.id);
+                    for (let y = floorY; y <= floorY + 4; y++) worldData.delete(`${x},${y},${z}`);
+                }
+            }
+            rebuildChunk(0, 0);
+            return floorY;
+        }
+
+        function createPortalAt(x, floorY, z, returning = false) {
+            const portal = new THREE.Group();
+            portal.position.set(x, floorY, z);
+            const pillar = new THREE.BoxGeometry(0.42, 3.5, 0.55);
+            const beam = new THREE.BoxGeometry(2.9, 0.48, 0.55);
+            const left = new THREE.Mesh(pillar, portalFrameMaterial);
+            left.position.set(-1.2, 1.75, 0);
+            const right = new THREE.Mesh(pillar, portalFrameMaterial);
+            right.position.set(1.2, 1.75, 0);
+            const top = new THREE.Mesh(beam, portalFrameMaterial);
+            top.position.set(0, 3.25, 0);
+            const base = new THREE.Mesh(beam, portalFrameMaterial);
+            base.position.set(0, 0.24, 0);
+            const interior = new THREE.Mesh(new THREE.PlaneGeometry(1.95, 2.75), portalGlowMaterial.clone());
+            interior.position.set(0, 1.86, 0.02);
+            const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+                map: createGlowTexture('rgba(255,90,235,0.8)', 'rgba(120,20,255,0)'),
+                blending: THREE.AdditiveBlending, depthWrite: false
+            }));
+            glow.position.set(0, 1.8, 0.08);
+            glow.scale.set(7.5, 7.5, 1);
+            portal.add(left, right, top, base, interior, glow);
+            portal.userData.interior = interior;
+            portal.userData.returning = returning;
+            scene.add(portal);
+            portals.push(portal);
+            activePortal = portal;
+            return portal;
+        }
+
+        function clearWorldForTravel() {
+            chunks.forEach(group => scene.remove(group));
+            chunks.clear();
+            worldData.clear();
+            seasonalSnowBlocks.clear();
+            generatedChunks.clear();
+            villageData.clear();
+            for (const mobList of [cowMobs, chickenMobs, fishMobs, zombieMobs, villagerMobs]) {
+                mobList.forEach(mob => scene.remove(mob.group));
+                mobList.length = 0;
+            }
+            crossbowBolts.forEach(bolt => scene.remove(bolt.mesh));
+            crossbowBolts.length = 0;
+            portals.forEach(portal => scene.remove(portal));
+            portals.length = 0;
+            activePortal = null;
+            player.velocity.set(0, 0, 0);
+            player.isGrounded = false;
+        }
+
+        function travelThroughPortal() {
+            if (!portals.length || performance.now() < portalCooldownUntil) return;
+            const feetY = player.position.y - player.height;
+            const nearbyPortal = portals.find(portal =>
+                Math.hypot(player.position.x - portal.position.x, player.position.z - portal.position.z) <= 2.1 &&
+                Math.abs(feetY - portal.position.y) <= 3.5
+            );
+            if (!nearbyPortal) return;
+
+            if (!isHellWorld) {
+                isHellWorld = true;
+                clearWorldForTravel();
+                const floorY = hellTerrainHeight(0, 0) + 1;
+                player.position.set(0, floorY + player.height, 4);
+                updateChunksAroundPlayer(0, 0);
+                createPortalAt(0, floorY, 0, true);
+                spawnHellBoss();
+                showNotification(bossDefeated ? 'Entered the Crimson Depths' : 'A Crimson Brute guards this realm!');
+            } else {
+                isHellWorld = false;
+                clearWorldForTravel();
+                const spawnX = mountainPortal.x + 3;
+                const spawnZ = mountainPortal.z;
+                const floorY = getNoise(spawnX, spawnZ) + 1;
+                player.position.set(spawnX + 0.5, floorY + player.height, spawnZ + 0.5);
+                updateChunksAroundPlayer(player.position.x, player.position.z);
+                createPortalAt(mountainPortal.x + 0.5, mountainPortal.y + 1, mountainPortal.z + 0.5);
+                createPortalAt(spawnX + 0.5, floorY, spawnZ + 1.8);
+                showNotification('Returned to the mountain world!');
+            }
+            portalCooldownUntil = performance.now() + 1800;
+        }
+
+        function collidesWithSolidBlock(x, y, z) {
+            const minX = Math.floor(x - player.radius), maxX = Math.floor(x + player.radius);
+            const minY = Math.floor(y - player.height), maxY = Math.floor(y - 0.05);
+            const minZ = Math.floor(z - player.radius), maxZ = Math.floor(z + player.radius);
+            for (let bx = minX; bx <= maxX; bx++) {
+                for (let by = minY; by <= maxY; by++) {
+                    for (let bz = minZ; bz <= maxZ; bz++) {
+                        const block = BLOCK_TYPES_BY_ID.get(getBlock(bx, by, bz));
+                        if (block && block.solid) return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function resolveVerticalCollision(previousY) {
+            const currentY = player.position.y;
+            const previousFeet = previousY - player.height;
+            const currentFeet = currentY - player.height;
+            const previousHead = previousY - 0.05;
+            const currentHead = currentY - 0.05;
+            const minX = Math.floor(player.position.x - player.radius);
+            const maxX = Math.floor(player.position.x + player.radius);
+            const minZ = Math.floor(player.position.z - player.radius);
+            const maxZ = Math.floor(player.position.z + player.radius);
+            const minY = Math.floor(Math.min(previousFeet, currentFeet, previousHead, currentHead)) - 1;
+            const maxY = Math.ceil(Math.max(previousFeet, currentFeet, previousHead, currentHead));
+            let landingTop = -Infinity;
+            let ceilingBottom = Infinity;
+
+            for (let bx = minX; bx <= maxX; bx++) {
+                for (let bz = minZ; bz <= maxZ; bz++) {
+                    if (player.position.x + player.radius <= bx || player.position.x - player.radius >= bx + 1 ||
+                        player.position.z + player.radius <= bz || player.position.z - player.radius >= bz + 1) continue;
+                    for (let by = minY; by <= maxY; by++) {
+                        const block = BLOCK_TYPES_BY_ID.get(getBlock(bx, by, bz));
+                        if (!block || !block.solid) continue;
+                        if (player.velocity.y <= 0 && previousFeet >= by + 1 - 0.001 && currentFeet < by + 1) {
+                            landingTop = Math.max(landingTop, by + 1);
+                        } else if (player.velocity.y > 0 && previousHead <= by + 0.001 && currentHead > by) {
+                            ceilingBottom = Math.min(ceilingBottom, by);
+                        }
+                    }
+                }
+            }
+
+            if (landingTop !== -Infinity) {
+                player.position.y = landingTop + player.height;
+                player.velocity.y = 0;
+                player.isGrounded = true;
+            } else if (ceilingBottom !== Infinity) {
+                player.position.y = ceilingBottom + 0.05;
+                player.velocity.y = 0;
+                player.isGrounded = false;
+            } else {
+                player.isGrounded = false;
+            }
+        }
+
+        let pitch = 0, yaw = 0, gameStarted = false, isPointerLocked = false;
+        let gameMode = 'survival';
+        let mouseSensitivity = 0.002, touchSensitivity = 0.004, soundEffectsOn = true;
+        const canvasElement = renderer.domElement;
+
+        let musicContext = null;
+        let musicTimer = null;
+        let musicMuted = false;
+        function playSoundEffect(frequency = 440) {
+            if (!soundEffectsOn) return;
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContextClass) return;
+            try {
+                const context = musicContext || new AudioContextClass();
+                if (!musicContext) musicContext = context;
+                const oscillator = context.createOscillator();
+                const gain = context.createGain();
+                oscillator.frequency.value = frequency;
+                gain.gain.setValueAtTime(0.06, context.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.12);
+                oscillator.connect(gain); gain.connect(context.destination);
+                oscillator.start(); oscillator.stop(context.currentTime + 0.13);
+            } catch (error) { /* Audio is optional; gameplay continues if unavailable. */ }
+        }
+        function startPeacefulMusic() {
+            if (musicTimer) return;
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContextClass) return;
+            musicContext = new AudioContextClass();
+            musicContext.resume();
+            const melody = [392, 440, 523.25, 440, 392, 329.63, 349.23, 392,
+                440, 523.25, 587.33, 523.25, 440, 392, 349.23, 329.63];
+            let noteIndex = 0;
+            const playNote = () => {
+                if (musicMuted) return;
+                const now = musicContext.currentTime;
+                const oscillator = musicContext.createOscillator();
+                const envelope = musicContext.createGain();
+                oscillator.type = 'sine';
+                oscillator.frequency.value = melody[noteIndex % melody.length];
+                envelope.gain.setValueAtTime(0.0001, now);
+                envelope.gain.exponentialRampToValueAtTime(0.045, now + 0.08);
+                envelope.gain.exponentialRampToValueAtTime(0.0001, now + 0.75);
+                oscillator.connect(envelope);
+                envelope.connect(musicContext.destination);
+                oscillator.start(now);
+                oscillator.stop(now + 0.8);
+                noteIndex++;
+            };
+            playNote();
+            musicTimer = window.setInterval(playNote, 650);
+        }
+
+        function selectGameMode(mode) {
+            gameMode = mode;
+            const creative = mode === 'creative';
+            document.getElementById('btn-mode-survival').className = creative
+                ? 'py-3 rounded-xl border-2 border-stone-700 bg-stone-800/70 text-stone-300 font-bold'
+                : 'py-3 rounded-xl border-2 border-emerald-400 bg-emerald-900/50 text-white font-bold';
+            document.getElementById('btn-mode-creative').className = creative
+                ? 'py-3 rounded-xl border-2 border-cyan-400 bg-cyan-900/50 text-white font-bold'
+                : 'py-3 rounded-xl border-2 border-stone-700 bg-stone-800/70 text-stone-300 font-bold';
+            document.getElementById('mode-description').textContent = creative
+                ? 'Build freely with every block and tool. Hunger and damage are disabled.'
+                : 'Gather resources, manage hunger, and survive the world.';
+            document.getElementById('mode-display').textContent = `Mode: ${creative ? 'Creative' : 'Survival'}`;
+            document.getElementById('hunger-display').textContent = creative ? 'Hunger: Disabled' : `Hunger: ${player.hunger} / 20`;
+            document.getElementById('hunger-bar').style.width = creative ? '100%' : `${player.hunger * 5}%`;
+            document.getElementById('health-display').textContent = creative ? 'Health: Invulnerable' : `Health: ${player.health} / 20`;
+            renderWorkshop();
+        }
+        document.getElementById('btn-mode-survival').addEventListener('click', () => selectGameMode('survival'));
+        document.getElementById('btn-mode-creative').addEventListener('click', () => selectGameMode('creative'));
+
+        document.getElementById('btn-start-game').addEventListener('click', () => {
+            startPeacefulMusic();
+            gameStarted = true;
+            document.getElementById('start-menu').classList.add('hidden');
+            document.getElementById('crosshair').classList.remove('hidden');
+            document.getElementById('hud').classList.remove('hidden');
+            document.getElementById('hotbar').classList.remove('hidden');
+            document.getElementById('btn-inventory').classList.remove('hidden');
+            document.getElementById('btn-pause').classList.remove('hidden');
+            document.getElementById('btn-eat-apple').classList.remove('hidden');
+
+            if ('ontouchstart' in window || navigator.maxTouchPoints > 0 || window.innerWidth < 1024) {
+                document.getElementById('mobile-controls').classList.remove('hidden');
+            } else {
+                document.getElementById('btn-fight-desktop').classList.remove('hidden');
+                canvasElement.requestPointerLock();
+            }
+
+            const restoredWorld = loadWorld(true);
+            if (!restoredWorld) player.position.set(0, getNoise(0, 0) + 3, 0);
+            updateChunksAroundPlayer(player.position.x, player.position.z);
+            mountainPortal = findMountainPortal();
+            if (isHellWorld) {
+                createPortalAt(0, hellTerrainHeight(0, 0) + 1, 0, true);
+                spawnHellBoss();
+            } else {
+                createPortalAt(mountainPortal.x + 0.5, mountainPortal.y + 1, mountainPortal.z + 0.5);
+                const spawnPortalZ = 4.5; // Positive Z is behind the player's default forward (-Z) direction.
+                const spawnPortalFloor = prepareSpawnPortalSite();
+                createPortalAt(0, spawnPortalFloor, spawnPortalZ);
+                if (!restoredWorld) showNotification('Turn around: a bright portal is directly behind you at spawn!');
+            }
+        });
+
+        canvasElement.addEventListener('click', () => {
+            if (gameStarted && !isPointerLocked && document.getElementById('inventory-modal').classList.contains('hidden') && !('ontouchstart' in window)) {
+                canvasElement.requestPointerLock();
+            }
+        });
+
+        document.addEventListener('pointerlockchange', () => {
+            isPointerLocked = document.pointerLockElement === canvasElement;
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isPointerLocked || !gameStarted) return;
+            yaw -= e.movementX * mouseSensitivity;
+            pitch -= e.movementY * mouseSensitivity;
+            pitch = Math.max(-1.5, Math.min(1.5, pitch));
+        });
+
+        // Touch Look Controls
+        let touchStartX = 0, touchStartY = 0, isLooking = false;
+        document.addEventListener('touchstart', (e) => {
+            if (!gameStarted || e.target.closest('#joystick-base, #btn-jump, #btn-sleep-mobile, #btn-break, #btn-place, #btn-fight-mobile, #btn-animal-action, #btn-fight-desktop, #btn-eat-apple, #hotbar, #btn-inventory, #inventory-modal')) return;
+            if (e.touches.length > 0) {
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+                isLooking = true;
+            }
+        });
+        document.addEventListener('touchmove', (e) => {
+            if (!isLooking || !gameStarted) return;
+            const touch = e.touches[0];
+            yaw -= (touch.clientX - touchStartX) * touchSensitivity;
+            pitch -= (touch.clientY - touchStartY) * touchSensitivity;
+            touchStartX = touch.clientX;
+            touchStartY = touch.clientY;
+            pitch = Math.max(-1.5, Math.min(1.5, pitch));
+        });
+        document.addEventListener('touchend', () => { isLooking = false; });
+
+        const keys = {};
+        window.addEventListener('keydown', (e) => {
+            if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
+            keys[e.code] = true;
+            if (e.code === 'Space' && gameStarted && player.isGrounded && !e.repeat) {
+                player.velocity.y = player.jumpSpeed;
+                player.isGrounded = false;
+            }
+            if (e.code.startsWith('Digit')) {
+                const idx = parseInt(e.code.replace('Digit', '')) - 1;
+                if (idx >= 0 && idx < hotbarBlockIds.length) setActiveHotbar(idx);
+            }
+            if (e.code === 'KeyE') toggleInventory();
+            if (e.code === 'KeyC' && !e.repeat) {
+                if (findNearbyChest()) toggleInventory();
+                else showNotification('No storage chest nearby');
+            }
+            if (e.code === 'KeyF' && !e.repeat) fightZombie();
+            if (e.code === 'KeyG' && !e.repeat) interactWithAnimal();
+            if (e.code === 'KeyH' && !e.repeat) sleepInBed();
+            if (e.code === 'KeyZ' && !e.repeat) undoBlockChange();
+            if (e.code === 'Escape' && gameStarted) togglePause();
+        });
+        window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+
+        // Virtual Joystick
+        let joystickActive = false, joystickVector = { x: 0, y: 0 };
+        const jBase = document.getElementById('joystick-base'), jStick = document.getElementById('joystick-stick');
+        jBase.addEventListener('touchstart', (e) => { joystickActive = true; updateJoystick(e.touches[0]); });
+        jBase.addEventListener('touchmove', (e) => { if (joystickActive) updateJoystick(e.touches[0]); });
+        jBase.addEventListener('touchend', () => { joystickActive = false; joystickVector = { x: 0, y: 0 }; jStick.style.transform = `translate(0px, 0px)`; });
+
+        function updateJoystick(touch) {
+            const rect = jBase.getBoundingClientRect();
+            const dx = touch.clientX - (rect.left + rect.width / 2);
+            const dy = touch.clientY - (rect.top + rect.height / 2);
+            const dist = Math.min(rect.width / 2, Math.sqrt(dx * dx + dy * dy));
+            const angle = Math.atan2(dy, dx);
+            jStick.style.transform = `translate(${Math.cos(angle) * dist}px, ${Math.sin(angle) * dist}px)`;
+            joystickVector.x = (Math.cos(angle) * dist) / (rect.width / 2);
+            joystickVector.y = (Math.sin(angle) * dist) / (rect.width / 2);
+        }
+
+        const raycaster = new THREE.Raycaster();
+        const placementPreview = new THREE.Mesh(cubeGeometry, new THREE.MeshBasicMaterial({ color: 0x7dffb2, wireframe: true, transparent: true, opacity: 0.8 }));
+        placementPreview.visible = false;
+        placementPreview.scale.setScalar(1.01);
+        scene.add(placementPreview);
+        const undoHistory = [];
+        function recordBlockChange(x, y, z, previous, next) {
+            undoHistory.push({ x, y, z, previous, next });
+            if (undoHistory.length > 100) undoHistory.shift();
+        }
+        function undoBlockChange() {
+            const change = undoHistory.pop();
+            if (!change) { showNotification('Nothing to undo'); return; }
+            setBlock(change.x, change.y, change.z, change.previous || 0);
+            showNotification('Last block change undone');
+        }
+
+        function getTargetBlock() {
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+            const objects = [];
+            chunks.forEach(g => objects.push(...g.children));
+            const intersects = raycaster.intersectObjects(objects);
+            if (intersects.length > 0 && intersects[0].distance < 6) {
+                const hit = intersects[0];
+                const matrix = new THREE.Matrix4();
+                hit.object.getMatrixAt(hit.instanceId, matrix);
+                const position = new THREE.Vector3().setFromMatrixPosition(matrix);
+                const normal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld);
+                return { position, normal };
+            }
+            return null;
+        }
+
+        function breakBlock() {
+            const target = getTargetBlock();
+            if (!target) return;
+            const x = Math.floor(target.position.x);
+            const y = Math.floor(target.position.y);
+            const z = Math.floor(target.position.z);
+            const blockId = getBlock(x, y, z);
+            if (blockId === BLOCKS.APPLE.id && gameMode !== 'creative') {
+                appleCount++;
+                updateAppleButton();
+                showNotification('Apple picked! Eat it to restore hunger');
+            } else if (gameMode !== 'creative') {
+                const drops = {
+                    [BLOCKS.GRASS.id]: ['dirt', 1], [BLOCKS.DIRT.id]: ['dirt', 1], [BLOCKS.MOSS.id]: ['dirt', 1],
+                    [BLOCKS.STONE.id]: ['stone', 1], [BLOCKS.DEEPSTONE.id]: ['stone', 1], [BLOCKS.WOOD.id]: ['wood', 1],
+                    [BLOCKS.COAL_ORE.id]: ['coal', 2], [BLOCKS.IRON_ORE.id]: ['iron', 1],
+                    [BLOCKS.SAND.id]: ['sand', 1], [BLOCKS.SNOW.id]: ['snow', 1],
+                    [BLOCKS.BRICKS.id]: ['stone', 1], [BLOCKS.PLANK.id]: ['wood', 1], [BLOCKS.FURNACE.id]: ['stone', 4]
+                };
+                if (drops[blockId]) addResource(drops[blockId][0], drops[blockId][1]);
+                else if ((blockId === BLOCKS.LEAVES.id || blockId === BLOCKS.GREEN_LEAVES.id) && Math.random() < 0.18) addResource('seeds', 1);
+                if (equippedTool) {
+                    toolDurability--;
+                    if (toolDurability <= 0) {
+                        showNotification(`${equippedTool} broke`);
+                        equippedTool = null;
+                        toolDurability = 0;
+                    } else renderWorkshop();
+                }
+            }
+            recordBlockChange(x, y, z, blockId, 0);
+            setBlock(x, y, z, 0);
+            playSoundEffect(520);
+            if (blockId !== BLOCKS.APPLE.id) showNotification('Block broken — resources collected');
+        }
+
+        let lastPlayerAttack = 0;
+        function fightZombie() {
+            if (!gameStarted) return;
+            const now = performance.now();
+            if (now - lastPlayerAttack < 450) return;
+            lastPlayerAttack = now;
+
+            const forwardX = -Math.sin(yaw);
+            const forwardZ = -Math.cos(yaw);
+            let target = null;
+            let closest = 3.4;
+            for (const zombie of zombieMobs) {
+                const dx = zombie.group.position.x - player.position.x;
+                const dz = zombie.group.position.z - player.position.z;
+                const distance = Math.hypot(dx, dz);
+                const facing = distance > 0 ? (dx * forwardX + dz * forwardZ) / distance : 1;
+                if (distance < closest && facing > 0.15 &&
+                    Math.abs(zombie.group.position.y - (player.position.y - player.height)) < 2.2) {
+                    target = zombie;
+                    closest = distance;
+                }
+            }
+
+            if (!target) {
+                let nearestCow = null;
+                for (const cow of cowMobs) {
+                    const dx = cow.group.position.x - player.position.x;
+                    const dz = cow.group.position.z - player.position.z;
+                    const distance = Math.hypot(dx, dz);
+                    const facing = distance > 0 ? (dx * forwardX + dz * forwardZ) / distance : 1;
+                    if (distance < closest && facing > 0.15) {
+                        nearestCow = cow;
+                        closest = distance;
+                    }
+                }
+                if (!nearestCow) {
+                    let nearestChicken = null;
+                    for (const chicken of chickenMobs) {
+                        const dx = chicken.group.position.x - player.position.x;
+                        const dz = chicken.group.position.z - player.position.z;
+                        const distance = Math.hypot(dx, dz);
+                        const facing = distance > 0 ? (dx * forwardX + dz * forwardZ) / distance : 1;
+                        if (distance < closest && facing > 0.15) { nearestChicken = chicken; closest = distance; }
+                    }
+                    if (!nearestChicken) {
+                        showNotification('No animal or zombie in range');
+                        return;
+                    }
+                    scene.remove(nearestChicken.group);
+                    chickenMobs.splice(chickenMobs.indexOf(nearestChicken), 1);
+                    addResource('meat', 1); addResource('feathers', 2);
+                    showNotification('Chicken hunted — meat and feathers collected');
+                    return;
+                }
+                nearestCow.health -= 5;
+                nearestCow.nextTurn = 0;
+                nearestCow.fleeUntil = performance.now() / 1000 + 3;
+                if (nearestCow.health <= 0) {
+                    scene.remove(nearestCow.group);
+                    cowMobs.splice(cowMobs.indexOf(nearestCow), 1);
+                    addResource('meat', 2);
+                    player.hunger = Math.min(20, player.hunger + 2);
+                    updateHungerDisplay();
+                    showNotification('Cow hunted! Raw meat collected');
+                } else {
+                    showNotification('Cow hit — it is running away!');
+                }
+                return;
+            }
+            const weaponDamage = equippedTool && toolStats[equippedTool]
+                ? toolStats[equippedTool].damage : 5;
+            target.health -= weaponDamage;
+            playSoundEffect(180);
+            if (equippedTool && gameMode !== 'creative') {
+                toolDurability--;
+                if (toolDurability <= 0) { equippedTool = null; toolDurability = 0; showNotification('Your tool broke'); }
+            }
+            renderWorkshop();
+            if (target.health <= 0) {
+                scene.remove(target.group);
+                zombieMobs.splice(zombieMobs.indexOf(target), 1);
+                if (target.isBoss) {
+                    bossDefeated = true;
+                    addResource('ironIngot', 5);
+                    addResource('cookedMeat', 3);
+                    showNotification('Crimson Brute defeated! Rare loot collected');
+                } else showNotification('Zombie defeated!');
+            } else {
+                showNotification(`Zombie hit! ${target.health} health left`);
+            }
+        }
+
+        function blockOverlapsPlayer(bx, by, bz) {
+            const playerMinY = player.position.y - player.height;
+            const playerMaxY = player.position.y - 0.05;
+            return player.position.x + player.radius > bx && player.position.x - player.radius < bx + 1 &&
+                playerMaxY > by && playerMinY < by + 1 &&
+                player.position.z + player.radius > bz && player.position.z - player.radius < bz + 1;
+        }
+
+        function placeBlock() {
+            const target = getTargetBlock();
+            if (target) {
+                const pos = target.position.clone().add(target.normal);
+                const bx = Math.floor(pos.x), by = Math.floor(pos.y), bz = Math.floor(pos.z);
+                const blockId = hotbarBlockIds[activeHotbarIndex];
+                const block = BLOCK_TYPES_BY_ID.get(blockId);
+                if (getBlock(bx, by, bz) !== null) {
+                    showNotification('That space is already occupied');
+                    return;
+                }
+                if (blockId === BLOCKS.APPLE_SEEDS.id) {
+                    const soil = BLOCK_TYPES_BY_ID.get(getBlock(bx, by - 1, bz));
+                    if (!soil || (soil.id !== BLOCKS.GRASS.id && soil.id !== BLOCKS.DIRT.id)) {
+                        showNotification('Plant seeds on grass or dirt');
+                        return;
+                    }
+                }
+                if (block && block.solid && blockOverlapsPlayer(bx, by, bz)) {
+                    showNotification('Cannot place a block inside yourself');
+                    return;
+                }
+                recordBlockChange(bx, by, bz, null, blockId);
+                setBlock(bx, by, bz, blockId);
+                playSoundEffect(720);
+                showNotification('Block Placed');
+            }
+        }
+
+        window.addEventListener('mousedown', (e) => {
+            if (!gameStarted || !isPointerLocked) return;
+            if (e.button === 0) breakBlock();
+            if (e.button === 2) placeBlock();
+        });
+        window.addEventListener('contextmenu', e => e.preventDefault());
+
+        document.getElementById('btn-break').addEventListener('click', breakBlock);
+        document.getElementById('btn-place').addEventListener('click', placeBlock);
+        document.getElementById('btn-fight-mobile').addEventListener('click', fightZombie);
+        document.getElementById('btn-animal-action').addEventListener('click', interactWithAnimal);
+        document.getElementById('btn-fight-desktop').addEventListener('click', fightZombie);
+        document.getElementById('btn-jump').addEventListener('click', () => {
+            if (player.isGrounded) { player.velocity.y = player.jumpSpeed; player.isGrounded = false; }
+        });
+        document.getElementById('btn-sleep-mobile').addEventListener('click', sleepInBed);
+        document.getElementById('btn-eat-apple').addEventListener('click', eatApple);
+
+        function setActiveHotbar(index) {
+            if (index < 0 || index >= hotbarBlockIds.length) return;
+            activeHotbarIndex = index;
+            buildHotbarUI();
+        }
+
+        function buildHotbarUI() {
+            const hotbarEl = document.getElementById('hotbar');
+            hotbarEl.innerHTML = '';
+            hotbarBlockIds.forEach((bId, idx) => {
+                const block = Object.values(BLOCKS).find(b => b.id === bId);
+                const slot = document.createElement('div');
+                slot.className = `w-12 h-12 rounded-xl flex items-center justify-center cursor-pointer border-2 transition-all ${idx === activeHotbarIndex ? 'border-emerald-400 bg-white/30 scale-105' : 'border-white/15 bg-black/50'}`;
+                slot.style.backgroundColor = block.colors ? `#${block.colors.top.toString(16).padStart(6, '0')}` : `#${block.color.toString(16).padStart(6, '0')}`;
+                slot.textContent = String(idx + 1);
+                slot.title = block.name;
+                slot.onclick = () => { activeHotbarIndex = idx; buildHotbarUI(); };
+                hotbarEl.appendChild(slot);
+            });
+        }
+        buildHotbarUI();
+
+        function renderQuests() {
+            const shrineFound = [...worldData.values()].includes(BLOCKS.CHEST.id);
+            const goals = [
+                ['Gather 10 stone', resources.stone >= 10],
+                ['Craft your first tool', !!equippedTool],
+                ['Find a red apple', appleCount > 0],
+                ['Discover an abandoned shrine', shrineFound],
+                ['Defeat the Crimson Brute', bossDefeated]
+            ];
+            document.getElementById('quest-list').innerHTML = goals.map(([label, done]) =>
+                `<div>${done ? '✅' : '⬜'} ${label}</div>`).join('');
+        }
+
+        function togglePause(forceOpen = null) {
+            const modal = document.getElementById('pause-modal');
+            const opening = forceOpen === null ? modal.classList.contains('hidden') : forceOpen;
+            if (opening) {
+                document.getElementById('inventory-modal').classList.add('hidden');
+                modal.classList.remove('hidden');
+                renderQuests();
+                if (isPointerLocked) document.exitPointerLock();
+            } else {
+                modal.classList.add('hidden');
+                if (gameStarted && !('ontouchstart' in window) && window.innerWidth >= 1024) canvasElement.requestPointerLock();
+            }
+        }
+
+        document.getElementById('btn-pause').addEventListener('click', () => togglePause());
+        document.getElementById('btn-resume').addEventListener('click', () => togglePause(false));
+        document.getElementById('setting-sensitivity').addEventListener('input', event => {
+            mouseSensitivity = Number(event.target.value) * 0.0004;
+            touchSensitivity = mouseSensitivity * 2;
+        });
+        document.getElementById('setting-quality').addEventListener('change', event => {
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio * Number(event.target.value), 2));
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        document.getElementById('btn-toggle-sound').addEventListener('click', event => {
+            soundEffectsOn = !soundEffectsOn;
+            event.currentTarget.textContent = `Sound effects: ${soundEffectsOn ? 'On' : 'Off'}`;
+            if (soundEffectsOn) playSoundEffect(660);
+        });
+
+        function toggleInventory() {
+            const modal = document.getElementById('inventory-modal');
+            if (modal.classList.contains('hidden')) {
+                modal.classList.remove('hidden');
+                if (isPointerLocked) document.exitPointerLock();
+                const grid = document.getElementById('inventory-grid');
+                grid.innerHTML = '';
+                Object.values(BLOCKS).filter(block => block.id !== BLOCKS.AIR.id).forEach(block => {
+                    const bId = block.id;
+                    const item = document.createElement('div');
+                    item.className = 'aspect-square bg-stone-800 hover:bg-stone-700 border border-stone-700 rounded-2xl flex flex-col items-center justify-center p-2 cursor-pointer';
+                    item.innerHTML = `<div class="w-10 h-10 rounded-lg mb-1" style="background-color: #${(block.colors ? block.colors.top : block.color).toString(16).padStart(6, '0')}"></div><span class="text-[10px] text-stone-300">${block.name}</span>`;
+                    item.onclick = () => { hotbarBlockIds[activeHotbarIndex] = bId; buildHotbarUI(); toggleInventory(); };
+                    grid.appendChild(item);
+                });
+                renderWorkshop();
+            } else modal.classList.add('hidden');
+        }
+        document.getElementById('btn-inventory').addEventListener('click', toggleInventory);
+        document.getElementById('btn-save-world').addEventListener('click', saveWorld);
+        document.getElementById('btn-load-world').addEventListener('click', () => {
+            if (loadWorld()) {
+                updateChunksAroundPlayer(player.position.x, player.position.z);
+                mountainPortal = findMountainPortal();
+                if (isHellWorld) {
+                    createPortalAt(0, hellTerrainHeight(0, 0) + 1, 0, true);
+                    spawnHellBoss();
+                } else {
+                    createPortalAt(mountainPortal.x + 0.5, mountainPortal.y + 1, mountainPortal.z + 0.5);
+                    createPortalAt(0, prepareSpawnPortalSite(), 4.5);
+                }
+                document.getElementById('save-status').textContent = 'Saved world loaded.';
+            }
+        });
+        document.getElementById('close-inventory').addEventListener('click', toggleInventory);
+
+        function showNotification(text) {
+            const notif = document.getElementById('notification');
+            notif.innerText = text;
+            notif.style.opacity = '1';
+            setTimeout(() => { notif.style.opacity = '0'; }, 1500);
+        }
+
+        function updateHungerDisplay() {
+            document.getElementById('hunger-display').innerText = gameMode === 'creative'
+                ? 'Hunger: Disabled' : `Hunger: ${player.hunger} / 20`;
+            document.getElementById('hunger-bar').style.width = gameMode === 'creative' ? '100%' : `${player.hunger * 5}%`;
+        }
+
+        function updateAppleButton() {
+            document.getElementById('btn-eat-apple').innerText = `Eat Apple (${appleCount})`;
+        }
+
+        function eatApple() {
+            if (appleCount <= 0) {
+                showNotification('No apples yet — harvest one from an apple tree');
+                return;
+            }
+            if (player.hunger >= 20) {
+                showNotification('You are not hungry');
+                return;
+            }
+            appleCount--;
+            player.hunger = Math.min(20, player.hunger + 6);
+            updateAppleButton();
+            updateHungerDisplay();
+            showNotification('Yum! Hunger restored');
+        }
+
+        function eatCookedMeat() {
+            const food = resources.cookedMeat > 0 ? 'cookedMeat' : (resources.trailRations > 0 ? 'trailRations' : null);
+            if (!food || player.hunger >= 20) {
+                showNotification(!food ? 'Craft cooked meat or trail rations first' : 'You are not hungry');
+                return;
+            }
+            resources[food]--;
+            player.hunger = Math.min(20, player.hunger + (food === 'trailRations' ? 5 : 8));
+            updateHungerDisplay(); renderWorkshop();
+            showNotification(food === 'trailRations' ? 'Trail ration eaten' : 'Cooked meal eaten — hunger restored');
+        }
+        document.getElementById('btn-eat-meat').addEventListener('click', eatCookedMeat);
+        function eatAnimalFood(item, restore, label) {
+            if (gameMode === 'creative') { showNotification('Hunger is disabled in creative mode'); return; }
+            if (resources[item] < 1) { showNotification(`No ${item} available`); return; }
+            if (player.hunger >= 20) { showNotification('You are not hungry'); return; }
+            resources[item]--;
+            player.hunger = Math.min(20, player.hunger + restore);
+            updateHungerDisplay();
+            renderWorkshop();
+            showNotification(`${label} eaten — hunger restored`);
+        }
+        document.getElementById('btn-drink-milk').addEventListener('click', () => eatAnimalFood('milk', 5, 'Milk'));
+        document.getElementById('btn-eat-egg').addEventListener('click', () => eatAnimalFood('eggs', 4, 'Egg'));
+        document.getElementById('btn-toggle-music').addEventListener('click', () => {
+            musicMuted = !musicMuted;
+            document.getElementById('btn-toggle-music').textContent = musicMuted ? 'Enable Music' : 'Mute Music';
+        });
+
+        let nextHungerTick = performance.now() + 15000;
+        let nextStarvationDamage = performance.now() + 4000;
+        let nextHealthRegen = performance.now() + 10000;
+        function updateHunger(now) {
+            if (gameMode === 'creative') return;
+            if (player.hunger >= 12 && player.health < 20 && now >= nextHealthRegen) {
+                player.health = Math.min(20, player.health + 1);
+                document.getElementById('health-display').innerText = `Health: ${player.health} / 20`;
+                nextHealthRegen = now + 10000;
+            }
+            if (now >= nextHungerTick) {
+                player.hunger = Math.max(0, player.hunger - 1);
+                nextHungerTick = now + 15000;
+                updateHungerDisplay();
+            }
+            if (player.hunger === 0 && now >= nextStarvationDamage) {
+                player.health = Math.max(0, player.health - 1);
+                nextStarvationDamage = now + 4000;
+                document.getElementById('health-display').innerText = `Health: ${player.health} / 20`;
+                if (player.health === 0) {
+                    player.health = 20;
+                    player.hunger = 10;
+                    const respawnY = isHellWorld ? hellTerrainHeight(0, 0) + 1 + player.height : getNoise(0, 0) + 3;
+                    player.position.set(0, respawnY, 0);
+                    player.velocity.set(0, 0, 0);
+                    updateHungerDisplay();
+                    document.getElementById('health-display').innerText = 'Health: 20 / 20';
+                    showNotification('Starved — respawned');
+                }
+            }
+        }
+
+        let lastTime = performance.now(), frameCount = 0, lastFpsUpdate = performance.now();
+        function gameLoop() {
+            requestAnimationFrame(gameLoop);
+            const now = performance.now();
+            const delta = Math.min((now - lastTime) / 1000, 0.1);
+            lastTime = now;
+
+            if (!gameStarted) { renderer.render(scene, camera); return; }
+            if (!document.getElementById('inventory-modal').classList.contains('hidden') ||
+                !document.getElementById('pause-modal').classList.contains('hidden')) {
+                renderer.render(scene, camera);
+                return;
+            }
+
+            updateDayNightCycle(delta);
+            updateSnowfall(delta);
+            updateRain(delta, now);
+            updateHunger(now);
+            updateCowMobs(delta, now / 1000);
+            updateChickenMobs(delta, now / 1000);
+            updateFishMobs(delta, now / 1000);
+            updateVillagerMobs(delta, now / 1000);
+            updateZombieMobs(delta, now / 1000);
+            frameCount++;
+            if (now - lastFpsUpdate >= 1000) {
+                document.getElementById('fps').innerText = `FPS: ${frameCount}`;
+                frameCount = 0; lastFpsUpdate = now;
+            }
+
+            const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+            const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+            const move = new THREE.Vector3();
+
+            if (keys['KeyW']) move.add(forward);
+            if (keys['KeyS']) move.sub(forward);
+            if (keys['KeyD']) move.add(right);
+            if (keys['KeyA']) move.sub(right);
+            if (joystickActive) {
+                move.add(forward.clone().multiplyScalar(-joystickVector.y));
+                move.add(right.clone().multiplyScalar(joystickVector.x));
+            }
+            move.y = 0;
+            if (move.length() > 0) move.normalize();
+
+            player.velocity.x = move.x * player.speed;
+            player.velocity.z = move.z * player.speed;
+            player.velocity.y -= 25 * delta;
+
+            const nextX = player.position.x + player.velocity.x * delta;
+            if (!collidesWithSolidBlock(nextX, player.position.y, player.position.z)) player.position.x = nextX;
+            const nextZ = player.position.z + player.velocity.z * delta;
+            if (!collidesWithSolidBlock(player.position.x, player.position.y, nextZ)) player.position.z = nextZ;
+            const previousY = player.position.y;
+            player.position.y += player.velocity.y * delta;
+            resolveVerticalCollision(previousY);
+
+            if (player.position.y < -10) {
+                const respawnY = isHellWorld ? hellTerrainHeight(0, 0) + 1 + player.height : getNoise(0, 0) + 3;
+                player.position.set(0, respawnY, 0);
+                player.velocity.set(0, 0, 0);
+                player.isGrounded = false;
+            }
+
+            portals.forEach(portal => {
+                portal.userData.interior.material.opacity = 0.72 + Math.sin(now * 0.004) * 0.16;
+            });
+            travelThroughPortal();
+            camera.position.copy(player.position);
+            const submerged = getBlock(Math.floor(player.position.x), Math.floor(player.position.y), Math.floor(player.position.z)) === BLOCKS.WATER.id;
+            document.getElementById('underwater-overlay').style.opacity = submerged ? '1' : '0';
+            camera.quaternion.multiplyQuaternions(
+                new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw),
+                new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), pitch)
+            );
+            const previewTarget = getTargetBlock();
+            if (previewTarget) {
+                const previewPos = previewTarget.position.clone().add(previewTarget.normal);
+                placementPreview.position.set(Math.floor(previewPos.x) + 0.5, Math.floor(previewPos.y) + 0.5, Math.floor(previewPos.z) + 0.5);
+                placementPreview.visible = getBlock(Math.floor(previewPos.x), Math.floor(previewPos.y), Math.floor(previewPos.z)) === null;
+            } else placementPreview.visible = false;
+
+            document.getElementById('coords').innerText = `Pos: X: ${Math.floor(player.position.x)}, Y: ${Math.floor(player.position.y)}, Z: ${Math.floor(player.position.z)}`;
+            updateChunksAroundPlayer(player.position.x, player.position.z);
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        window.onload = gameLoop;
+    </script>
+</body>
+</html>
+```
